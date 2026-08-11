@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Web app (Next.js)
+web/.next/
+web/node_modules/
+web/.env
+web/.env.local
+web/.env*.local
+web/tsconfig.tsbuildinfo
+# La carpeta mobile/ dentro del web app es una copia vieja — la versión actual está en la raíz
+web/mobile/

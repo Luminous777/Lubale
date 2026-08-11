@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: Tarjetas B2B API
+  version: "1.0.0"
+  description: |
+    API REST para integración móvil (misma base que la web).
+    Autenticación con JWT Bearer obtenido en `/api/v1/auth/login`.
+servers:
+  - url: http://localhost:3000
+    description: Local
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Obtener access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 604800
+        "401":
+          description: Credenciales inválidas
+  /api/v1/me:
+    get:
+      summary: Usuario autenticado
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  email: { type: string }
+                  name: { type: string, nullable: true }
+        "401":
+          description: No autorizado
+  /api/v1/organizations/{orgSlug}/profiles:
+    get:
+      summary: Listar perfiles/tarjetas de una organización
+      parameters:
+        - name: orgSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Organización inexistente o sin acceso
+  /api/register:
+    post:
+      summary: Registrar usuario (email/password)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                name: { type: string }
+      responses:
+        "200": { description: Creado }
+        "409": { description: Email duplicado }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
