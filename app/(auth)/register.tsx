@@ -1,11 +1,14 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from "react-native";
 import { useRouter, Link } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { registerPersonal, registerPro, registerInvite, login } from "@/lib/api";
 import { setUserPlan } from "@/lib/storage";
+import { Button, IconBadge } from "@/components/ui";
+import { colors, radius, spacing, font } from "@/lib/theme";
 
 type PlanStep = "select" | "free" | "pro" | "invite";
 
@@ -13,7 +16,7 @@ function toSlug(val: string) {
   return val
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 32);
@@ -48,40 +51,77 @@ export default function RegisterScreen() {
   );
 }
 
+// ─── Reusable input ──────────────────────────────────────────────────────────
+
+function LabeledInput({
+  label, style, ...props
+}: { label: string } & React.ComponentProps<typeof TextInput> & { style?: object }) {
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, style]}
+        placeholderTextColor={colors.faint}
+        {...props}
+      />
+    </>
+  );
+}
+
 // ─── Plan selector ────────────────────────────────────────────────────────────
 
 function PlanSelect({ onSelect }: { onSelect: (step: PlanStep) => void }) {
   return (
     <>
       <View style={styles.header}>
-        <Text style={styles.logo}>🪪</Text>
+        <IconBadge icon="credit-card" tone="accent" size={56} />
         <Text style={styles.title}>Creá tu tarjeta</Text>
         <Text style={styles.subtitle}>Elegí el plan que mejor se adapte a vos</Text>
       </View>
 
-      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("free")}>
-        <View style={styles.planHeaderRow}>
-          <Text style={styles.planTitle}>Gratis</Text>
-          <Text style={styles.planPrice}>$0</Text>
+      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("free")} activeOpacity={0.85}>
+        <IconBadge icon="user" tone="neutral" size={44} />
+        <View style={styles.planBody}>
+          <View style={styles.planHeaderRow}>
+            <Text style={styles.planTitle}>Gratis</Text>
+            <Text style={styles.planPrice}>$0</Text>
+          </View>
+          <Text style={styles.planDesc}>Tu tarjeta digital personal en segundos</Text>
         </View>
-        <Text style={styles.planDesc}>Tu tarjeta digital personal en segundos</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.planCard, styles.planCardPro]} onPress={() => onSelect("pro")}>
-        <View style={styles.planHeaderRow}>
-          <Text style={styles.planTitle}>Pro ✨</Text>
-          <Text style={styles.planPricePro}>$9 / mes</Text>
+      <TouchableOpacity style={[styles.planCard, styles.planCardPro]} onPress={() => onSelect("pro")} activeOpacity={0.85}>
+        <IconBadge icon="zap" tone="pro" size={44} />
+        <View style={styles.planBody}>
+          <View style={styles.planHeaderRow}>
+            <Text style={styles.planTitle}>Pro</Text>
+            <Text style={styles.planPricePro}>$9 / mes</Text>
+          </View>
+          <Text style={styles.planDesc}>Más personalización, estadísticas y soporte prioritario</Text>
         </View>
-        <Text style={styles.planDesc}>Más personalización, estadísticas y soporte prioritario</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("invite")}>
-        <View style={styles.planHeaderRow}>
-          <Text style={styles.planTitle}>Tarjeta de empresa 🏢</Text>
+      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("invite")} activeOpacity={0.85}>
+        <IconBadge icon="briefcase" tone="neutral" size={44} />
+        <View style={styles.planBody}>
+          <View style={styles.planHeaderRow}>
+            <Text style={styles.planTitle}>Tarjeta de empresa</Text>
+          </View>
+          <Text style={styles.planDesc}>¿Tu empresa ya usa Mi Tarjeta? Sumate con un código de invitación</Text>
         </View>
-        <Text style={styles.planDesc}>¿Tu empresa ya usa Mi Tarjeta? Sumate con un código de invitación</Text>
       </TouchableOpacity>
     </>
+  );
+}
+
+// ─── Back row ─────────────────────────────────────────────────────────────────
+
+function BackRow({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.backRow} hitSlop={8}>
+      <Feather name="chevron-left" size={18} color={colors.accent} />
+      <Text style={styles.backText}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -120,28 +160,24 @@ function FreeForm({ onBack }: { onBack: () => void }) {
 
   return (
     <>
-      <TouchableOpacity onPress={onBack} style={styles.backRow}>
-        <Text style={styles.backText}>‹ Cambiar plan</Text>
-      </TouchableOpacity>
+      <BackRow label="Cambiar plan" onPress={onBack} />
 
       <View style={styles.header}>
-        <Text style={styles.logo}>🪪</Text>
+        <IconBadge icon="user" tone="accent" size={52} />
         <Text style={styles.title}>Crear tarjeta gratis</Text>
         <Text style={styles.subtitle}>Tu tarjeta digital en segundos</Text>
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Nombre visible</Text>
-        <TextInput
-          style={styles.input}
+        <LabeledInput
+          label="Nombre visible"
           value={name}
           onChangeText={onNameChange}
           placeholder="Juan Pérez"
-          placeholderTextColor="#94a3b8"
           textContentType="name"
         />
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Tu URL pública</Text>
+        <Text style={[styles.label, { marginTop: spacing.lg }]}>Tu URL pública</Text>
         <View style={styles.handleRow}>
           <Text style={styles.handlePrefix}>tarjeta.app/</Text>
           <TextInput
@@ -150,40 +186,39 @@ function FreeForm({ onBack }: { onBack: () => void }) {
             onChangeText={setHandle}
             autoCapitalize="none"
             placeholder="juan-perez"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.faint}
           />
         </View>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          placeholder="tu@email.com"
-          placeholderTextColor="#94a3b8"
-        />
+        <View style={{ marginTop: spacing.lg }}>
+          <LabeledInput
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholder="tu@email.com"
+          />
+        </View>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Contraseña</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="newPassword"
-          placeholder="Mínimo 8 caracteres"
-          placeholderTextColor="#94a3b8"
-        />
+        <View style={{ marginTop: spacing.lg }}>
+          <LabeledInput
+            label="Contraseña"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            placeholder="Mínimo 8 caracteres"
+          />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.btn, loading && styles.btnDisabled]}
+        <Button
+          label="Crear mi tarjeta"
           onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Crear mi tarjeta</Text>}
-        </TouchableOpacity>
+          loading={loading}
+          style={{ marginTop: spacing["2xl"] }}
+        />
       </View>
     </>
   );
@@ -224,28 +259,24 @@ function ProForm({ onBack }: { onBack: () => void }) {
 
   return (
     <>
-      <TouchableOpacity onPress={onBack} style={styles.backRow}>
-        <Text style={styles.backText}>‹ Cambiar plan</Text>
-      </TouchableOpacity>
+      <BackRow label="Cambiar plan" onPress={onBack} />
 
       <View style={styles.header}>
-        <Text style={styles.logo}>✨</Text>
+        <IconBadge icon="zap" tone="pro" size={52} />
         <Text style={styles.title}>Plan Pro</Text>
         <Text style={styles.subtitle}>Estadísticas, personalización avanzada y soporte prioritario</Text>
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Nombre visible</Text>
-        <TextInput
-          style={styles.input}
+        <LabeledInput
+          label="Nombre visible"
           value={name}
           onChangeText={onNameChange}
           placeholder="Juan Pérez"
-          placeholderTextColor="#94a3b8"
           textContentType="name"
         />
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Tu URL pública</Text>
+        <Text style={[styles.label, { marginTop: spacing.lg }]}>Tu URL pública</Text>
         <View style={styles.handleRow}>
           <Text style={styles.handlePrefix}>tarjeta.app/</Text>
           <TextInput
@@ -254,40 +285,41 @@ function ProForm({ onBack }: { onBack: () => void }) {
             onChangeText={setHandle}
             autoCapitalize="none"
             placeholder="juan-perez"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.faint}
           />
         </View>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          placeholder="tu@email.com"
-          placeholderTextColor="#94a3b8"
-        />
+        <View style={{ marginTop: spacing.lg }}>
+          <LabeledInput
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholder="tu@email.com"
+          />
+        </View>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Contraseña</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="newPassword"
-          placeholder="Mínimo 8 caracteres"
-          placeholderTextColor="#94a3b8"
-        />
+        <View style={{ marginTop: spacing.lg }}>
+          <LabeledInput
+            label="Contraseña"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            placeholder="Mínimo 8 caracteres"
+          />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.btn, styles.btnPro, loading && styles.btnDisabled]}
+        <Button
+          label="Activar plan Pro"
+          variant="pro"
+          icon="zap"
           onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Activar plan Pro</Text>}
-        </TouchableOpacity>
+          loading={loading}
+          style={{ marginTop: spacing["2xl"] }}
+        />
       </View>
     </>
   );
@@ -339,17 +371,13 @@ function InviteForm({ onBack }: { onBack: () => void }) {
 
   return (
     <>
-      <TouchableOpacity
+      <BackRow
+        label={inviteStep === "details" ? "Volver" : "Cambiar plan"}
         onPress={inviteStep === "details" ? () => setInviteStep("code") : onBack}
-        style={styles.backRow}
-      >
-        <Text style={styles.backText}>
-          {inviteStep === "details" ? "‹ Volver" : "‹ Cambiar plan"}
-        </Text>
-      </TouchableOpacity>
+      />
 
       <View style={styles.header}>
-        <Text style={styles.logo}>🏢</Text>
+        <IconBadge icon="briefcase" tone="accent" size={52} />
         <Text style={styles.title}>Tarjeta de empresa</Text>
         <Text style={styles.subtitle}>
           {inviteStep === "code"
@@ -368,62 +396,61 @@ function InviteForm({ onBack }: { onBack: () => void }) {
       <View style={styles.form}>
         {inviteStep === "code" ? (
           <>
-            <Text style={styles.label}>Código de invitación</Text>
-            <TextInput
-              style={[styles.input, styles.inputCode]}
+            <LabeledInput
+              label="Código de invitación"
+              style={styles.inputCode}
               value={inviteCode}
               onChangeText={setInviteCode}
               autoCapitalize="characters"
               autoCorrect={false}
               placeholder="ABC-123"
-              placeholderTextColor="#94a3b8"
             />
-            <TouchableOpacity style={styles.btn} onPress={handleCodeNext}>
-              <Text style={styles.btnText}>Continuar</Text>
-            </TouchableOpacity>
+            <Button
+              label="Continuar"
+              icon="arrow-right"
+              onPress={handleCodeNext}
+              style={{ marginTop: spacing["2xl"] }}
+            />
           </>
         ) : (
           <>
-            <Text style={styles.label}>Tu nombre</Text>
-            <TextInput
-              style={styles.input}
+            <LabeledInput
+              label="Tu nombre"
               value={name}
               onChangeText={setName}
               placeholder="Juan Pérez"
-              placeholderTextColor="#94a3b8"
               textContentType="name"
             />
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              placeholder="tu@empresa.com"
-              placeholderTextColor="#94a3b8"
-            />
+            <View style={{ marginTop: spacing.lg }}>
+              <LabeledInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                placeholder="tu@empresa.com"
+              />
+            </View>
 
-            <Text style={[styles.label, { marginTop: 16 }]}>Contraseña</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              textContentType="newPassword"
-              placeholder="Mínimo 8 caracteres"
-              placeholderTextColor="#94a3b8"
-            />
+            <View style={{ marginTop: spacing.lg }}>
+              <LabeledInput
+                label="Contraseña"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                textContentType="newPassword"
+                placeholder="Mínimo 8 caracteres"
+              />
+            </View>
 
-            <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
+            <Button
+              label="Unirme a la empresa"
               onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Unirme a la empresa</Text>}
-            </TouchableOpacity>
+              loading={loading}
+              style={{ marginTop: spacing["2xl"] }}
+            />
           </>
         )}
       </View>
@@ -431,83 +458,74 @@ function InviteForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
+// ─── Estilos ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8fafc" },
-  inner: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 28, paddingVertical: 40 },
-  header: { alignItems: "center", marginBottom: 24 },
-  logo: { fontSize: 48, marginBottom: 12 },
-  title: { fontSize: 24, fontWeight: "700", color: "#0f172a", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#64748b", marginTop: 6, textAlign: "center" },
+  container: { flex: 1, backgroundColor: colors.background },
+  inner: { flexGrow: 1, justifyContent: "center", paddingHorizontal: spacing["3xl"], paddingVertical: spacing["4xl"] },
+  header: { alignItems: "center", marginBottom: spacing["2xl"] },
+  title: { fontSize: font.xl, fontWeight: font.bold, color: colors.ink, textAlign: "center", marginTop: spacing.lg, letterSpacing: -0.3 },
+  subtitle: { fontSize: font.sm, color: colors.muted, marginTop: 6, textAlign: "center", lineHeight: 20 },
   form: {},
-  label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 },
+  label: { fontSize: font.sm, fontWeight: font.semibold, color: colors.ink, marginBottom: spacing.sm },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#0f172a",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    fontSize: font.base,
+    color: colors.ink,
   },
   inputCode: {
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: 4,
+    fontSize: font.xl,
+    fontWeight: font.bold,
+    letterSpacing: 6,
     textAlign: "center",
-    color: "#3f67c4",
+    color: colors.ink,
   },
   handleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  handlePrefix: { fontSize: 14, color: "#64748b", fontWeight: "500" },
+  handlePrefix: { fontSize: font.sm, color: colors.muted, fontWeight: font.medium },
   handleInput: { flex: 1 },
-  btn: {
-    backgroundColor: "#3f67c4",
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  btnPro: { backgroundColor: "#7c3aed" },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  footer: { flexDirection: "row", justifyContent: "center", marginTop: 32 },
-  footerText: { fontSize: 14, color: "#64748b" },
-  link: { fontSize: 14, color: "#3f67c4", fontWeight: "600" },
-  backRow: { marginBottom: 8 },
-  backText: { fontSize: 14, color: "#3f67c4", fontWeight: "600" },
+  footer: { flexDirection: "row", justifyContent: "center", marginTop: spacing["3xl"] },
+  footerText: { fontSize: font.sm, color: colors.muted },
+  link: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
+  backRow: { flexDirection: "row", alignItems: "center", gap: 2, marginBottom: spacing.sm },
+  backText: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
   planCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.border,
   },
   planCardPro: {
-    borderColor: "#7c3aed",
-    borderWidth: 1.5,
-    backgroundColor: "#faf5ff",
+    borderColor: colors.proBorder,
+    backgroundColor: colors.proSoft,
   },
+  planBody: { flex: 1 },
   planHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  planTitle: { fontSize: 17, fontWeight: "700", color: "#0f172a" },
-  planPrice: { fontSize: 15, fontWeight: "700", color: "#3f67c4" },
-  planPricePro: { fontSize: 15, fontWeight: "700", color: "#7c3aed" },
-  planDesc: { fontSize: 13, color: "#64748b", marginTop: 6 },
+  planTitle: { fontSize: font.md, fontWeight: font.bold, color: colors.ink },
+  planPrice: { fontSize: font.base, fontWeight: font.bold, color: colors.ink },
+  planPricePro: { fontSize: font.base, fontWeight: font.bold, color: colors.pro },
+  planDesc: { fontSize: font.sm, color: colors.muted, marginTop: 4, lineHeight: 18 },
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 0,
-    marginBottom: 28,
+    marginBottom: spacing["2xl"],
   },
   stepDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.border,
   },
-  stepDotActive: { backgroundColor: "#3f67c4" },
-  stepLine: { width: 48, height: 2, backgroundColor: "#e2e8f0", marginHorizontal: 6 },
+  stepDotActive: { backgroundColor: colors.ink },
+  stepLine: { width: 48, height: 2, backgroundColor: colors.border, marginHorizontal: 6 },
 });

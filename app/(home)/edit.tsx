@@ -4,9 +4,12 @@ import {
   ScrollView, ActivityIndicator, Alert, Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { getProfile, updateProfile, type ProfileDetail, API_BASE } from "@/lib/api";
 import * as SecureStore from "expo-secure-store";
+import { Button, Card, SectionLabel } from "@/components/ui";
+import { colors, radius, spacing, font } from "@/lib/theme";
 
 type Plan = "gratis" | "pro" | "empresa";
 type LinkDraft = { id?: string; title: string; url: string; sortOrder: number };
@@ -35,7 +38,7 @@ function CardPreview({
 
   return (
     <View style={prev.wrap}>
-      <View style={prev.card}>
+      <Card style={prev.card}>
         <View style={prev.header}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={prev.photo} />
@@ -57,10 +60,16 @@ function CardPreview({
         {hasContact ? (
           <View style={prev.contactRow}>
             {phone.trim() ? (
-              <Text style={prev.contactItem} numberOfLines={1}>📱 {phone}</Text>
+              <View style={prev.contactItem}>
+                <Feather name="phone" size={13} color={colors.muted} />
+                <Text style={prev.contactText} numberOfLines={1}>{phone}</Text>
+              </View>
             ) : null}
             {email.trim() ? (
-              <Text style={prev.contactItem} numberOfLines={1}>✉️ {email}</Text>
+              <View style={prev.contactItem}>
+                <Feather name="mail" size={13} color={colors.muted} />
+                <Text style={prev.contactText} numberOfLines={1}>{email}</Text>
+              </View>
             ) : null}
           </View>
         ) : null}
@@ -74,8 +83,11 @@ function CardPreview({
             ))}
           </View>
         ) : null}
+      </Card>
+      <View style={prev.labelRow}>
+        <Feather name="eye" size={11} color={colors.faint} />
+        <Text style={prev.label}>Vista previa en tiempo real</Text>
       </View>
-      <Text style={prev.label}>Vista previa en tiempo real</Text>
     </View>
   );
 }
@@ -94,11 +106,13 @@ function LockedField({ label }: { label: string }) {
     <View style={st.fieldWrap}>
       <View style={st.labelRow}>
         <Text style={st.label}>{label}</Text>
-        <TouchableOpacity onPress={onPress} style={st.proBadge}>
-          <Text style={st.proBadgeText}>✨ Plan Pro</Text>
+        <TouchableOpacity onPress={onPress} style={st.proBadge} activeOpacity={0.8}>
+          <Feather name="zap" size={11} color={colors.pro} />
+          <Text style={st.proBadgeText}>Plan Pro</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={[st.input, st.lockedField]}>
+        <Feather name="lock" size={14} color={colors.faint} />
         <Text style={st.lockedText}>Disponible en Plan Pro</Text>
       </TouchableOpacity>
     </View>
@@ -125,7 +139,7 @@ function Field({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94a3b8"
+        placeholderTextColor={colors.faint}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         keyboardType={keyboardType}
@@ -262,7 +276,7 @@ export default function EditScreen() {
   if (loading) {
     return (
       <View style={st.center}>
-        <ActivityIndicator size="large" color="#3f67c4" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -286,20 +300,21 @@ export default function EditScreen() {
       />
 
       {/* ── Información ── */}
-      <Text style={st.sectionLabel}>Información</Text>
+      <SectionLabel>Información</SectionLabel>
 
-      <TouchableOpacity style={st.photoRow} onPress={pickPhoto}>
+      <TouchableOpacity style={st.photoRow} onPress={pickPhoto} activeOpacity={0.8}>
         {photoUrl ? (
           <Image source={{ uri: photoUrl }} style={st.photo} />
         ) : (
           <View style={st.photoEmpty}>
-            <Text style={st.photoEmptyIcon}>📷</Text>
+            <Feather name="camera" size={20} color={colors.faint} />
           </View>
         )}
         <View style={st.photoInfo}>
           <Text style={st.photoLabel}>Foto de perfil</Text>
           <Text style={st.photoHint}>Tocar para cambiar</Text>
         </View>
+        <Feather name="chevron-right" size={20} color={colors.faint} />
       </TouchableOpacity>
 
       <Field
@@ -328,7 +343,7 @@ export default function EditScreen() {
       )}
 
       {/* ── Contacto ── */}
-      <Text style={st.sectionLabel}>Contacto</Text>
+      <SectionLabel>Contacto</SectionLabel>
 
       <Field
         label="Teléfono / WhatsApp"
@@ -352,7 +367,7 @@ export default function EditScreen() {
 
       {/* ── Links ── */}
       <View style={st.linksSectionHeader}>
-        <Text style={st.sectionLabel}>Links</Text>
+        <SectionLabel>Links</SectionLabel>
         {!isPro && (
           <Text style={st.linkCounter}>{links.length}/{FREE_LINK_LIMIT} · solo WhatsApp</Text>
         )}
@@ -366,20 +381,20 @@ export default function EditScreen() {
               value={l.title}
               onChangeText={(v) => updateLink(i, "title", v)}
               placeholder="WhatsApp, LinkedIn..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.faint}
             />
             <TextInput
               style={[st.input, st.linkInput]}
               value={l.url}
               onChangeText={(v) => updateLink(i, "url", v)}
               placeholder="https://..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.faint}
               autoCapitalize="none"
               keyboardType="url"
             />
           </View>
-          <TouchableOpacity onPress={() => removeLink(i)} style={st.removeBtn}>
-            <Text style={st.removeBtnText}>✕</Text>
+          <TouchableOpacity onPress={() => removeLink(i)} style={st.removeBtn} hitSlop={8}>
+            <Feather name="x" size={18} color={colors.faint} />
           </TouchableOpacity>
         </View>
       ))}
@@ -387,6 +402,7 @@ export default function EditScreen() {
       {atLinkLimit ? (
         <TouchableOpacity
           style={st.upgradePrompt}
+          activeOpacity={0.8}
           onPress={() =>
             Alert.alert(
               "Plan Pro",
@@ -395,26 +411,24 @@ export default function EditScreen() {
             )
           }
         >
-          <Text style={st.upgradePromptText}>✨ Más links con Plan Pro</Text>
+          <Feather name="zap" size={15} color={colors.pro} />
+          <Text style={st.upgradePromptText}>Más links con Plan Pro</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={st.addLinkBtn} onPress={addLink}>
-          <Text style={st.addLinkText}>+ Agregar link</Text>
+        <TouchableOpacity style={st.addLinkBtn} onPress={addLink} activeOpacity={0.8}>
+          <Feather name="plus" size={16} color={colors.accent} />
+          <Text style={st.addLinkText}>Agregar link</Text>
         </TouchableOpacity>
       )}
 
       {/* Save */}
-      <TouchableOpacity
-        style={[st.saveBtn, saving && st.saveBtnDisabled]}
+      <Button
+        label="Guardar cambios"
+        icon="check"
         onPress={handleSave}
-        disabled={saving}
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={st.saveBtnText}>Guardar cambios</Text>
-        )}
-      </TouchableOpacity>
+        loading={saving}
+        style={{ marginTop: spacing["2xl"] }}
+      />
     </ScrollView>
   );
 }
@@ -422,179 +436,157 @@ export default function EditScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const prev = StyleSheet.create({
-  wrap: { marginBottom: 8 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
-  },
+  wrap: { marginBottom: spacing.sm },
+  card: { padding: spacing.lg },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   photo: { width: 52, height: 52, borderRadius: 26 },
   initialsCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#3f67c4",
+    backgroundColor: colors.ink,
     justifyContent: "center",
     alignItems: "center",
   },
-  initials: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  initials: { color: colors.onInk, fontSize: font.lg, fontWeight: font.bold },
   nameBlock: { flex: 1 },
-  personName: { fontSize: 17, fontWeight: "700", color: "#0f172a" },
-  jobTitle: { fontSize: 13, color: "#64748b", marginTop: 2 },
-  contactRow: { gap: 3, marginBottom: 8 },
-  contactItem: { fontSize: 12, color: "#475569" },
+  personName: { fontSize: font.md, fontWeight: font.bold, color: colors.ink },
+  jobTitle: { fontSize: font.sm, color: colors.muted, marginTop: 2 },
+  contactRow: { gap: 5, marginBottom: spacing.sm },
+  contactItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  contactText: { fontSize: font.xs, color: colors.muted },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
-    backgroundColor: "#eff4ff",
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
   },
-  chipText: { fontSize: 11, color: "#3f67c4", fontWeight: "600" },
+  chipText: { fontSize: font.xs, color: colors.accent, fontWeight: font.semibold },
+  labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, marginTop: spacing.md },
   label: {
-    fontSize: 10,
-    color: "#94a3b8",
-    textAlign: "center",
-    marginTop: 10,
+    fontSize: font.xs,
+    color: colors.faint,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
 });
 
 const st = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#f8fafc" },
-  container: { padding: 20, paddingBottom: 64 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  container: { padding: spacing.xl, paddingBottom: spacing["4xl"] },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginTop: 24,
-    marginBottom: 10,
-  },
   linksSectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 24,
-    marginBottom: 10,
+    alignItems: "center",
   },
-  linkCounter: { fontSize: 12, fontWeight: "600", color: "#94a3b8", paddingBottom: 1 },
+  linkCounter: { fontSize: font.xs, fontWeight: font.semibold, color: colors.faint },
 
-  fieldWrap: { marginBottom: 10 },
+  fieldWrap: { marginBottom: spacing.md },
   labelRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
-  label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6 },
+  label: { fontSize: font.sm, fontWeight: font.semibold, color: colors.ink, marginBottom: spacing.sm },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 13,
-    fontSize: 15,
-    color: "#0f172a",
+    fontSize: font.base,
+    color: colors.ink,
   },
   inputMultiline: { minHeight: 80, textAlignVertical: "top" },
 
   lockedField: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surfaceMuted,
+    borderStyle: "dashed",
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 6,
   },
-  lockedText: { fontSize: 14, color: "#cbd5e1" },
+  lockedText: { fontSize: font.sm, color: colors.faint },
 
   proBadge: {
-    backgroundColor: "#f5f3ff",
-    borderRadius: 20,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.proSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
   },
-  proBadgeText: { fontSize: 11, color: "#7c3aed", fontWeight: "600" },
+  proBadgeText: { fontSize: font.xs, color: colors.pro, fontWeight: font.semibold },
 
   photoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    backgroundColor: "#fff",
+    gap: spacing.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   photo: { width: 52, height: 52, borderRadius: 26 },
   photoEmpty: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: colors.surfaceMuted,
     justifyContent: "center",
     alignItems: "center",
   },
-  photoEmptyIcon: { fontSize: 22 },
   photoInfo: { flex: 1 },
-  photoLabel: { fontSize: 14, fontWeight: "600", color: "#0f172a" },
-  photoHint: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
+  photoLabel: { fontSize: font.base, fontWeight: font.semibold, color: colors.ink },
+  photoHint: { fontSize: font.xs, color: colors.faint, marginTop: 2 },
 
   linkRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   linkFields: { flex: 1, gap: 6 },
-  linkInput: { fontSize: 13, paddingVertical: 10 },
-  removeBtn: { paddingTop: 14, paddingHorizontal: 4 },
-  removeBtnText: { fontSize: 15, color: "#94a3b8" },
+  linkInput: { fontSize: font.sm, paddingVertical: spacing.md },
+  removeBtn: { paddingTop: spacing.lg, paddingHorizontal: spacing.xs },
 
   addLinkBtn: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    paddingVertical: 14,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 4,
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
   },
-  addLinkText: { fontSize: 14, color: "#3f67c4", fontWeight: "600" },
+  addLinkText: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
 
   upgradePrompt: {
-    backgroundColor: "#f5f3ff",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.proSoft,
     borderWidth: 1,
-    borderColor: "#e9d5ff",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginBottom: 4,
+    borderColor: colors.proBorder,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
   },
-  upgradePromptText: { fontSize: 13, color: "#7c3aed", fontWeight: "600" },
-
-  saveBtn: {
-    backgroundColor: "#3f67c4",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  upgradePromptText: { fontSize: font.sm, color: colors.pro, fontWeight: font.semibold },
 });
