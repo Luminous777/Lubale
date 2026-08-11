@@ -57,7 +57,7 @@ export function Button({
 }
 
 const variantStyles: Record<ButtonVariant, { container: ViewStyle; label: { color: string } }> = {
-  primary: { container: { backgroundColor: colors.ink }, label: { color: colors.onInk } },
+  primary: { container: { backgroundColor: colors.accent }, label: { color: colors.onAccent } },
   secondary: {
     container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     label: { color: colors.ink },

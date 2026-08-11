@@ -449,7 +449,7 @@ const prev = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.accent,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -1,30 +1,30 @@
-// Design tokens — minimal & clean direction.
-// Near-black ink for primary actions, a single refined blue accent for
-// brand/interactive states, soft neutrals, hairline borders, subtle shadows.
+// Design tokens — minimal & clean direction, matched to the web app.
+// Violet brand accent for primary actions & interactive/selected states,
+// dark ink reserved for text & the QR, soft neutrals, hairline borders.
 
 export const colors = {
   // Surfaces
-  background: "#F6F7F9", // app canvas
+  background: "#F6F6FB", // app canvas
   surface: "#FFFFFF", // cards, inputs
-  surfaceMuted: "#F1F3F5", // subtle fills
+  surfaceMuted: "#F1F0F8", // subtle fills
 
   // Text
-  ink: "#111827", // primary text & primary buttons
-  muted: "#6B7280", // secondary text
-  faint: "#9CA3AF", // tertiary text, placeholders
+  ink: "#1B1A2E", // primary text & the QR (kept dark for contrast)
+  muted: "#7B7B90", // secondary text
+  faint: "#A0A0B4", // tertiary text, placeholders
 
   // Lines
-  border: "#E8EAED", // hairline borders
-  borderStrong: "#D6D9DE",
+  border: "#E7E6F0", // hairline borders
+  borderStrong: "#D6D4E4",
 
-  // Brand accent (blue)
-  accent: "#2563EB",
-  accentSoft: "#EEF3FF",
+  // Brand accent (violet) — primary buttons & selected states
+  accent: "#6D5EF6",
+  accentSoft: "#EFEDFE",
 
-  // Pro (violet)
-  pro: "#7C3AED",
-  proSoft: "#F5F3FF",
-  proBorder: "#E9D5FF",
+  // Pro (premium gold) — distinct from the violet brand accent
+  pro: "#B7791F",
+  proSoft: "#FBF3E1",
+  proBorder: "#F0DFB0",
 
   // Feedback
   success: "#059669",
@@ -75,14 +75,14 @@ export const font = {
 // Subtle, single-direction elevation. Kept restrained for the minimal look.
 export const shadow = {
   card: {
-    shadowColor: "#0F172A",
+    shadowColor: "#14142B",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
     shadowRadius: 18,
     elevation: 3,
   },
   soft: {
-    shadowColor: "#0F172A",
+    shadowColor: "#14142B",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,

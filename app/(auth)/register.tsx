@@ -526,6 +526,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.border,
   },
-  stepDotActive: { backgroundColor: colors.ink },
+  stepDotActive: { backgroundColor: colors.accent },
   stepLine: { width: 48, height: 2, backgroundColor: colors.border, marginHorizontal: 6 },
 });

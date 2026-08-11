@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     maxWidth: 170,
   },
-  selectorChipActive: { borderColor: colors.ink, backgroundColor: colors.ink },
+  selectorChipActive: { borderColor: colors.accent, backgroundColor: colors.accent },
   selectorText: { fontSize: font.sm, fontWeight: font.semibold, color: colors.ink },
   selectorTextActive: { color: colors.onInk },
   selectorOrg: { fontSize: font.xs, color: colors.faint, marginTop: 2 },
