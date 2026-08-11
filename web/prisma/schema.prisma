@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  admin
+  agent
+}
+
+enum MembershipStatus {
+  active
+  invited
+  disabled
+}
+
+enum ProfileStatus {
+  active
+  disabled
+}
+
+enum DeactivatedProfileBehavior {
+  gone
+  message
+}
+
+enum OrganizationKind {
+  business
+  personal
+}
+
+enum BillingPlan {
+  free
+  pro
+  business
+}
+
+enum BillingCycle {
+  monthly
+  annual
+}
+
+enum PaymentMethod {
+  card
+  transfer
+}
+
+enum BillingStatus {
+  none
+  trialing
+  active
+  past_due
+  canceled
+}
+
+enum AiQuotaScope {
+  /**
+   * Org personal (Particular Pro / Empleado extra): un único cupo por usuario admin de la org.
+   */
+  personal
+  /**
+   * Empresa: cupo de un empleado para SU tarjeta.
+   */
+  member_card
+  /**
+   * Empresa: cupo compartido entre admins para la marca de la org.
+   */
+  org_branding
+}
+
+enum ProfileLinkKind {
+  whatsapp
+  email
+  phone
+  web
+  social
+  other
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  image        String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships Membership[]
+  profiles    Profile[]    @relation("ProfileOwner")
+}
+
+model Organization {
+  id                  String                     @id @default(cuid())
+  name                String
+  slug                String                     @unique
+  logoUrl             String?
+  /**
+   * Fondo por defecto en todas las tarjetas públicas (cada perfil puede sobrescribir).
+   */
+  cardBackgroundUrl   String?
+  primaryColor        String                     @default("#3f67c4")
+  secondaryColor      String?                    @default("#6a8edc")
+  deactivatedBehavior DeactivatedProfileBehavior @default(gone)
+
+  /**
+   * Tipo de organización: empresa real (B2B) o pseudo-org de un particular.
+   */
+  kind             OrganizationKind @default(business)
+  /**
+   * Plan vigente. Free = sin IA, sin branding, enlaces podados a WhatsApp.
+   */
+  plan             BillingPlan      @default(business)
+  /**
+   * Asientos pagados (perfiles permitidos). 1 para personal, N para business.
+   */
+  seats            Int              @default(1)
+  /**
+   * Fecha en la que vence el período pagado (o el trial). null = nunca pagado.
+   */
+  currentPeriodEnd DateTime?
+  /**
+   * Si está en período de prueba 14 días (sin pago todavía).
+   */
+  inTrial          Boolean          @default(false)
+  /**
+   * Periodicidad del pago activo.
+   */
+  billingCycle     BillingCycle?
+  /**
+   * Medio de pago vigente.
+   */
+  paymentMethod    PaymentMethod?
+  /**
+   * Estado del cobro (gestionado por webhooks de Mercado Pago).
+   */
+  billingStatus    BillingStatus    @default(none)
+  /**
+   * ID externo de la suscripción / preapproval en Mercado Pago.
+   */
+  mpSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  profiles    Profile[]
+  invitations Invitation[]
+  auditEvents AuditEvent[]
+  aiUsage     AiQuotaUsage[]
+  invoices    BillingInvoice[]
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MembershipRole
+  status         MembershipStatus @default(active)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Profile {
+  id                String        @id @default(cuid())
+  organizationId    String
+  ownerUserId       String?
+  cardSlug          String
+  displayName       String
+  title             String?
+  bio               String?
+  phone             String?
+  emailPublic       String?
+  photoUrl          String?
+  /**
+   * Imagen de fondo de la tarjeta pública (URL o subida en /uploads/.../card-bg/).
+   */
+  cardBackgroundUrl String?
+  status            ProfileStatus @default(active)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?         @relation("ProfileOwner", fields: [ownerUserId], references: [id])
+  links        ProfileLink[]
+  views        CardView[]
+
+  @@unique([organizationId, cardSlug])
+  @@index([ownerUserId])
+}
+
+model CardView {
+  id        String   @id @default(cuid())
+  profileId String
+  viewedAt  DateTime @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, viewedAt])
+}
+
+model ProfileLink {
+  id        String          @id @default(cuid())
+  profileId String
+  title     String
+  url       String
+  /**
+   * Categoría detectada al guardar; permite filtrar (e.g. "solo WhatsApp" en Free).
+   */
+  kind      ProfileLinkKind @default(other)
+  sortOrder Int             @default(0)
+
+  profile Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  clicks  LinkClick[]
+
+  @@index([profileId])
+}
+
+model LinkClick {
+  id        String   @id @default(cuid())
+  linkId    String
+  clickedAt DateTime @default(now())
+
+  link ProfileLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, clickedAt])
+}
+
+model Invitation {
+  id             String         @id @default(cuid())
+  token          String         @unique
+  email          String
+  organizationId String
+  role           MembershipRole
+  profileId      String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model AuditEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorUserId    String
+  action         String
+  payload        Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model AiQuotaUsage {
+  id             String       @id @default(cuid())
+  organizationId String
+  /**
+   * Usuario que consume el cupo (member_card y personal). null si es a nivel org (org_branding).
+   */
+  userId         String?
+  scope          AiQuotaScope
+  /**
+   * Primer día del mes UTC al que aplica este contador.
+   */
+  periodStart    DateTime
+  imagesUsed     Int          @default(0)
+  textsUsed      Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, scope, periodStart])
+  @@index([organizationId, periodStart])
+}
+
+/**
+ * Histórico de cobros para soporte y panel del usuario. Mercado Pago notifica vía webhook.
+ */
+model BillingInvoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  amountCents    Int
+  currency       String        @default("ARS")
+  paymentMethod  PaymentMethod
+  /**
+   * Identificador externo (preapproval id, payment id, transferencia manual).
+   */
+  externalRef    String?
+  /**
+   * Fecha del pago (cuando MP confirma). null mientras está pendiente.
+   */
+  paidAt         DateTime?
+  /**
+   * Período cubierto por este pago.
+   */
+  periodStart    DateTime
+  periodEnd      DateTime
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, paidAt])
+}
