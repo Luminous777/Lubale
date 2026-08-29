@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useRouter, useNavigation } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { getMe, logout, type MeResponse } from "@/lib/api";
+import { Button, Card, SectionLabel } from "@/components/ui";
+import { colors, radius, spacing, font } from "@/lib/theme";
+
+function initials(name?: string | null) {
+  if (!name) return "?";
+  return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -31,57 +39,58 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3f67c4" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Cuenta</Text>
-        {me ? (
-          <>
-            <Text style={styles.cardValue}>{me.name ?? "Sin nombre"}</Text>
-            <Text style={styles.cardSub}>{me.email}</Text>
-          </>
-        ) : (
-          <Text style={styles.cardSub}>No disponible</Text>
-        )}
+      <SectionLabel>Cuenta</SectionLabel>
+      <Card style={styles.accountCard}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(me?.name)}</Text>
+        </View>
+        <View style={styles.accountInfo}>
+          <Text style={styles.name}>{me?.name ?? "Sin nombre"}</Text>
+          <View style={styles.emailRow}>
+            <Feather name="mail" size={13} color={colors.muted} />
+            <Text style={styles.email}>{me?.email ?? "No disponible"}</Text>
+          </View>
+        </View>
+      </Card>
+
+      <View style={{ marginTop: spacing["2xl"] }}>
+        <Button label="Cerrar sesión" variant="danger" icon="log-out" onPress={handleLogout} />
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.version}>Mi Tarjeta Digital v1.0</Text>
+      <View style={styles.versionRow}>
+        <Feather name="credit-card" size={13} color={colors.faint} />
+        <Text style={styles.version}>Mi Tarjeta Digital · v1.0</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8fafc", padding: 24 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  cardLabel: { fontSize: 11, fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 },
-  cardValue: { fontSize: 16, fontWeight: "700", color: "#0f172a" },
-  cardSub: { fontSize: 13, color: "#64748b", marginTop: 2 },
-  logoutBtn: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 16,
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing["2xl"] },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
+
+  accountCard: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.accent,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#fecaca",
-    marginTop: 8,
+    justifyContent: "center",
   },
-  logoutText: { color: "#dc2626", fontSize: 15, fontWeight: "600" },
-  version: { textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 32 },
+  avatarText: { color: colors.onInk, fontSize: font.md, fontWeight: font.bold },
+  accountInfo: { flex: 1 },
+  name: { fontSize: font.md, fontWeight: font.bold, color: colors.ink },
+  emailRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  email: { fontSize: font.sm, color: colors.muted, flexShrink: 1 },
+
+  versionRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: spacing["4xl"] },
+  version: { textAlign: "center", color: colors.faint, fontSize: font.xs },
 });

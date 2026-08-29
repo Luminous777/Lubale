@@ -4,12 +4,15 @@ import {
   Alert, ScrollView, Share, Platform,
 } from "react-native";
 import { useRouter, useFocusEffect, Stack } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
 import { getMyOrgs, getCheckoutUrl, type MyOrg } from "@/lib/api";
 import { getActiveProfileId, setActiveProfileId, getUserPlan } from "@/lib/storage";
 import { API_BASE } from "@/lib/api";
 import { Linking } from "react-native";
+import { Button, Card, IconBadge } from "@/components/ui";
+import { colors, radius, spacing, font, shadow } from "@/lib/theme";
 
 function publicCardUrl(orgSlug: string, cardSlug: string) {
   return `${API_BASE}/card/${orgSlug}/${cardSlug}`;
@@ -82,10 +85,20 @@ export default function HomeScreen() {
     await setActiveProfileId(id);
   }
 
+  const settingsButton = (
+    <TouchableOpacity
+      onPress={() => router.push("/(home)/settings")}
+      style={styles.headerBtn}
+      hitSlop={8}
+    >
+      <Feather name="settings" size={20} color={colors.ink} />
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3f67c4" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -93,125 +106,111 @@ export default function HomeScreen() {
   if (!active || !cardUrl) {
     return (
       <View style={styles.center}>
-        <Stack.Screen
-          options={{
-            title: "Mi Tarjeta",
-            headerRight: () => (
-              <TouchableOpacity onPress={() => router.push("/(home)/settings")} style={{ paddingRight: 4 }}>
-                <Text style={{ fontSize: 22 }}>⚙️</Text>
-              </TouchableOpacity>
-            ),
-          }}
-        />
+        <Stack.Screen options={{ title: "Mi Tarjeta", headerRight: () => settingsButton }} />
+        <IconBadge icon="credit-card" tone="neutral" size={64} />
         <Text style={styles.emptyTitle}>Sin tarjeta activa</Text>
         <Text style={styles.emptyText}>
           Tu cuenta no tiene ninguna tarjeta creada todavía.
         </Text>
-        <TouchableOpacity
-          style={styles.emptyBtn}
+        <Button
+          label="Ir a ajustes"
+          variant="secondary"
+          icon="settings"
           onPress={() => router.push("/(home)/settings")}
-        >
-          <Text style={styles.emptyBtnText}>Ir a ajustes</Text>
-        </TouchableOpacity>
+          style={{ marginTop: spacing.xl }}
+        />
       </View>
     );
   }
 
+  const activeProfiles = allProfiles.filter((p) => p.status === "active");
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
-      <Stack.Screen
-        options={{
-          title: "Mi Tarjeta",
-          headerRight: () => (
-            <TouchableOpacity onPress={() => router.push("/(home)/settings")} style={{ paddingRight: 4 }}>
-              <Text style={{ fontSize: 22 }}>⚙️</Text>
-            </TouchableOpacity>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: "Mi Tarjeta", headerRight: () => settingsButton }} />
+
       {/* Selector de tarjeta si hay más de una */}
-      {allProfiles.filter((p) => p.status === "active").length > 1 ? (
+      {activeProfiles.length > 1 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.selectorRow}
         >
-          {allProfiles
-            .filter((p) => p.status === "active")
-            .map((p) => (
+          {activeProfiles.map((p) => {
+            const isActive = p.id === activeProfileId;
+            return (
               <TouchableOpacity
                 key={p.id}
-                style={[styles.selectorChip, p.id === activeProfileId && styles.selectorChipActive]}
+                style={[styles.selectorChip, isActive && styles.selectorChipActive]}
                 onPress={() => switchProfile(p.id)}
+                activeOpacity={0.8}
               >
                 <Text
-                  style={[
-                    styles.selectorText,
-                    p.id === activeProfileId && styles.selectorTextActive,
-                  ]}
+                  style={[styles.selectorText, isActive && styles.selectorTextActive]}
                   numberOfLines={1}
                 >
                   {p.displayName}
                 </Text>
-                <Text style={styles.selectorOrg} numberOfLines={1}>
+                <Text
+                  style={[styles.selectorOrg, isActive && styles.selectorOrgActive]}
+                  numberOfLines={1}
+                >
                   {p.orgName}
                 </Text>
               </TouchableOpacity>
-            ))}
+            );
+          })}
         </ScrollView>
       ) : null}
 
       {/* Banner pago pendiente */}
-      {localPlan === "pro" && activeOrg?.plan === "gratis" && (
-        <ProPaymentBanner />
-      )}
+      {localPlan === "pro" && activeOrg?.plan === "gratis" && <ProPaymentBanner />}
 
       {/* Card con QR */}
-      <View style={styles.card}>
+      <Card style={styles.card}>
         <Text style={styles.name}>{active.displayName}</Text>
         {active.title ? <Text style={styles.title}>{active.title}</Text> : null}
-        <Text style={styles.orgName}>{active.orgName}</Text>
-
-        <View style={styles.qrWrap}>
-          <QRCode
-            value={cardUrl}
-            size={220}
-            color="#3f67c4"
-            backgroundColor="#ffffff"
-          />
+        <View style={styles.orgRow}>
+          <Feather name="briefcase" size={12} color={colors.faint} />
+          <Text style={styles.orgName}>{active.orgName}</Text>
         </View>
 
-        <Text style={styles.urlText} numberOfLines={1}>
-          {cardUrl}
-        </Text>
-      </View>
+        <View style={styles.qrWrap}>
+          <QRCode value={cardUrl} size={216} color={colors.ink} backgroundColor={colors.surface} />
+        </View>
+
+        <View style={styles.urlPill}>
+          <Feather name="link" size={13} color={colors.muted} />
+          <Text style={styles.urlText} numberOfLines={1}>
+            {cardUrl.replace(/^https?:\/\//, "")}
+          </Text>
+        </View>
+      </Card>
 
       {/* Acciones */}
-      <TouchableOpacity style={styles.btnPrimary} onPress={handleShare}>
-        <Text style={styles.btnPrimaryText}>Compartir tarjeta</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.btnSecondary} onPress={handleCopy}>
-        <Text style={styles.btnSecondaryText}>
-          {copied ? "¡Link copiado!" : "Copiar link"}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Ir a editar */}
-      <TouchableOpacity
-        style={styles.btnGhost}
-        onPress={() => {
-          const activeOrg = orgs.find((o) => o.profiles.some((p) => p.id === active.id));
-          const plan = activeOrg
-            ? activeOrg.orgKind === "business"
-              ? "empresa"
-              : (activeOrg.plan ?? localPlan)
-            : localPlan;
-          router.push({ pathname: "/(home)/edit", params: { profileId: active.id, plan } });
-        }}
-      >
-        <Text style={styles.btnGhostText}>Editar mi tarjeta</Text>
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <Button label="Compartir tarjeta" icon="share-2" onPress={handleShare} />
+        <Button
+          label={copied ? "¡Link copiado!" : "Copiar link"}
+          icon={copied ? "check" : "copy"}
+          variant="secondary"
+          onPress={handleCopy}
+        />
+        <Button
+          label="Editar mi tarjeta"
+          icon="edit-3"
+          variant="ghost"
+          onPress={() => {
+            const org = orgs.find((o) => o.profiles.some((p) => p.id === active.id));
+            const plan = org
+              ? org.orgKind === "business"
+                ? "empresa"
+                : (org.plan ?? localPlan)
+              : localPlan;
+            router.push({ pathname: "/(home)/edit", params: { profileId: active.id, plan } });
+          }}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -233,17 +232,21 @@ function ProPaymentBanner() {
 
   return (
     <View style={styles.payBanner}>
+      <View style={styles.payIcon}>
+        <Feather name="zap" size={18} color={colors.pro} />
+      </View>
       <View style={styles.payBannerText}>
-        <Text style={styles.payBannerTitle}>✨ Plan Pro — pago pendiente</Text>
+        <Text style={styles.payBannerTitle}>Plan Pro — pago pendiente</Text>
         <Text style={styles.payBannerSub}>
           Completá el pago para desbloquear foto, bio y links ilimitados.
         </Text>
       </View>
-      <TouchableOpacity style={styles.payBannerBtn} onPress={handlePay} disabled={loading}>
-        {loading
-          ? <ActivityIndicator color="#fff" size="small" />
-          : <Text style={styles.payBannerBtnText}>Pagar</Text>
-        }
+      <TouchableOpacity style={styles.payBannerBtn} onPress={handlePay} disabled={loading} activeOpacity={0.85}>
+        {loading ? (
+          <ActivityIndicator color={colors.onInk} size="small" />
+        ) : (
+          <Text style={styles.payBannerBtnText}>Pagar</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -252,108 +255,88 @@ function ProPaymentBanner() {
 HomeScreen.options = { title: "Mi Tarjeta" };
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: "#f8fafc" },
-  container: { padding: 24, paddingBottom: 48, alignItems: "center" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", marginBottom: 8 },
-  emptyText: { fontSize: 14, color: "#64748b", textAlign: "center", marginBottom: 24 },
-  emptyBtn: {
-    backgroundColor: "#f1f5f9",
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  emptyBtnText: { fontSize: 14, fontWeight: "600", color: "#374151" },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  container: { padding: spacing["2xl"], paddingBottom: spacing["4xl"] },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: spacing["3xl"], backgroundColor: colors.background },
+  headerBtn: { paddingHorizontal: spacing.xs },
 
-  selectorRow: { paddingBottom: 16, gap: 8, flexDirection: "row" },
+  emptyTitle: { fontSize: font.lg, fontWeight: font.bold, color: colors.ink, marginTop: spacing.lg, marginBottom: spacing.xs },
+  emptyText: { fontSize: font.sm, color: colors.muted, textAlign: "center", lineHeight: 20 },
+
+  selectorRow: { paddingBottom: spacing.lg, gap: spacing.sm, flexDirection: "row" },
   selectorChip: {
-    borderRadius: 20,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    backgroundColor: "#fff",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    maxWidth: 160,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    maxWidth: 170,
   },
-  selectorChipActive: { borderColor: "#3f67c4", backgroundColor: "#eff4ff" },
-  selectorText: { fontSize: 13, fontWeight: "600", color: "#374151" },
-  selectorTextActive: { color: "#3f67c4" },
-  selectorOrg: { fontSize: 11, color: "#94a3b8", marginTop: 1 },
+  selectorChipActive: { borderColor: colors.accent, backgroundColor: colors.accent },
+  selectorText: { fontSize: font.sm, fontWeight: font.semibold, color: colors.ink },
+  selectorTextActive: { color: colors.onInk },
+  selectorOrg: { fontSize: font.xs, color: colors.faint, marginTop: 2 },
+  selectorOrgActive: { color: "rgba(255,255,255,0.6)" },
 
-  card: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  name: { fontSize: 22, fontWeight: "700", color: "#0f172a", textAlign: "center" },
-  title: { fontSize: 14, color: "#64748b", marginTop: 4, textAlign: "center" },
-  orgName: { fontSize: 12, color: "#94a3b8", marginTop: 2, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8 },
+  card: { alignItems: "center", marginBottom: spacing.xl, padding: spacing["2xl"] },
+  name: { fontSize: font.xl, fontWeight: font.bold, color: colors.ink, textAlign: "center", letterSpacing: -0.3 },
+  title: { fontSize: font.base, color: colors.muted, marginTop: spacing.xs, textAlign: "center" },
+  orgRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.sm },
+  orgName: { fontSize: font.xs, color: colors.faint, textAlign: "center", textTransform: "uppercase", letterSpacing: 1 },
   qrWrap: {
-    marginTop: 24,
-    marginBottom: 16,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    marginTop: spacing["2xl"],
+    marginBottom: spacing.xl,
+    padding: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#f1f5f9",
+    borderColor: colors.border,
   },
-  urlText: { fontSize: 11, color: "#94a3b8", textAlign: "center", maxWidth: 280 },
-
-  btnPrimary: {
-    width: "100%",
-    backgroundColor: "#3f67c4",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  btnPrimaryText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  btnSecondary: {
-    width: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-  },
-  btnSecondaryText: { color: "#374151", fontSize: 15, fontWeight: "600" },
-  btnGhost: {
-    width: "100%",
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  btnGhostText: { color: "#3f67c4", fontSize: 14, fontWeight: "600" },
-
-  payBanner: {
-    width: "100%",
-    backgroundColor: "#7c3aed",
-    borderRadius: 16,
-    padding: 16,
+  urlPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+    gap: 6,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    maxWidth: 280,
+  },
+  urlText: { fontSize: font.xs, color: colors.muted, flexShrink: 1 },
+
+  actions: { gap: spacing.md },
+
+  payBanner: {
+    backgroundColor: colors.proSoft,
+    borderWidth: 1,
+    borderColor: colors.proBorder,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  payIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadow.soft,
   },
   payBannerText: { flex: 1 },
-  payBannerTitle: { fontSize: 13, fontWeight: "700", color: "#fff", marginBottom: 2 },
-  payBannerSub: { fontSize: 12, color: "#e9d5ff", lineHeight: 16 },
+  payBannerTitle: { fontSize: font.sm, fontWeight: font.bold, color: colors.pro, marginBottom: 2 },
+  payBannerSub: { fontSize: font.xs, color: colors.muted, lineHeight: 16 },
   payBannerBtn: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: colors.pro,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     minWidth: 60,
     alignItems: "center",
   },
-  payBannerBtnText: { fontSize: 13, fontWeight: "700", color: "#7c3aed" },
+  payBannerBtnText: { fontSize: font.sm, fontWeight: font.bold, color: colors.onInk },
 });
