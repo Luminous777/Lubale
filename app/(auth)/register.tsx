@@ -313,7 +313,7 @@ function StepPlan({ onSelect }: { onSelect: (p: Plan) => void }) {
           <View style={st.planInfo}>
             <View style={st.planTitleRow}>
               <Text style={[st.planName, { color: colors.accent }]}>Pro</Text>
-              <Text style={st.planPrice}>Próximamente</Text>
+              <Text style={[st.planPrice, { color: colors.accent }]}>$1.599/mes</Text>
             </View>
             <Text style={st.planSub}>Para profesionales</Text>
             <View style={st.featureList}>

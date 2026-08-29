@@ -13,7 +13,7 @@ export default function RootLayout() {
       const loggedIn = await isLoggedIn();
       const inAuth = segments[0] === "(auth)";
       if (!loggedIn && !inAuth) {
-        router.replace("/(auth)/login");
+        router.replace("/(auth)/");
       } else if (loggedIn && inAuth) {
         router.replace("/(home)/");
       }

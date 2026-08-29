@@ -7,7 +7,7 @@ import { useRouter, useFocusEffect, Stack } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
-import { getMyOrgs, getCheckoutUrl, type MyOrg } from "@/lib/api";
+import { getMyOrgs, getCheckoutUrl, getProfile, getProfileStats, type MyOrg, type ProfileStats } from "@/lib/api";
 import { getActiveProfileId, setActiveProfileId, getUserPlan } from "@/lib/storage";
 import { API_BASE } from "@/lib/api";
 import { Linking } from "react-native";
@@ -25,6 +25,8 @@ export default function HomeScreen() {
   const [localPlan, setLocalPlan] = useState<"gratis" | "pro" | "empresa">("gratis");
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [stats, setStats] = useState<ProfileStats | null>(null);
+  const [vcardLoading, setVcardLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -48,6 +50,11 @@ export default function HomeScreen() {
       if (chosen) {
         setActiveId(chosen.id);
         await setActiveProfileId(chosen.id);
+        // Cargar analíticas para plan Pro/Empresa
+        const plan = savedPlan ?? "gratis";
+        if (plan === "pro" || plan === "empresa") {
+          getProfileStats(chosen.id).then(setStats).catch(() => null);
+        }
       }
     } catch {
       Alert.alert("Error", "No se pudo cargar tu tarjeta. Verificá tu conexión.");
@@ -78,6 +85,33 @@ export default function HomeScreen() {
     await Clipboard.setStringAsync(cardUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  // ─── vCard ────────────────────────────────────────────────────────────────
+  async function handleSaveContact() {
+    if (!active || !cardUrl) return;
+    setVcardLoading(true);
+    try {
+      // Obtiene el perfil completo para incluir teléfono, email, bio
+      const full = await getProfile(active.id).catch(() => null);
+      const vcf = buildVCard({
+        fullName: active.displayName,
+        organization: active.orgName,
+        title: active.title ?? undefined,
+        phone: full?.phone ?? undefined,
+        email: full?.emailPublic ?? undefined,
+        url: cardUrl,
+        note: full?.bio ?? undefined,
+      });
+      await Share.share({
+        message: vcf,
+        title: `Contacto: ${active.displayName}`,
+      });
+    } catch {
+      Alert.alert("Error", "No se pudo compartir el contacto.");
+    } finally {
+      setVcardLoading(false);
+    }
   }
 
   async function switchProfile(id: string) {
@@ -187,6 +221,26 @@ export default function HomeScreen() {
         </View>
       </Card>
 
+      {/* Analíticas Pro */}
+      {stats && (localPlan === "pro" || localPlan === "empresa") && (
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{stats.weekViews}</Text>
+            <Text style={styles.statLabel}>esta semana</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{stats.monthViews}</Text>
+            <Text style={styles.statLabel}>este mes</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{stats.totalViews}</Text>
+            <Text style={styles.statLabel}>total</Text>
+          </View>
+        </View>
+      )}
+
       {/* Acciones */}
       <View style={styles.actions}>
         <Button label="Compartir tarjeta" icon="share-2" onPress={handleShare} />
@@ -195,6 +249,13 @@ export default function HomeScreen() {
           icon={copied ? "check" : "copy"}
           variant="secondary"
           onPress={handleCopy}
+        />
+        <Button
+          label={vcardLoading ? "Generando..." : "Guardar contacto"}
+          icon="user-plus"
+          variant="secondary"
+          onPress={handleSaveContact}
+          loading={vcardLoading}
         />
         <Button
           label="Editar mi tarjeta"
@@ -339,4 +400,66 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   payBannerBtnText: { fontSize: font.sm, fontWeight: font.bold, color: colors.onInk },
+
+  statsRow: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    marginBottom: spacing.xl,
+    overflow: "hidden",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+  },
+  statNumber: {
+    fontSize: font.xl,
+    fontWeight: font.bold,
+    color: colors.accent,
+    fontVariant: ["tabular-nums"],
+  },
+  statLabel: {
+    fontSize: font.xs,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
 });
+
+// ─── vCard builder (misma lógica que web/src/lib/vcard.ts) ───────────────────
+
+function escVCard(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,");
+}
+
+function buildVCard(input: {
+  fullName: string;
+  organization?: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+  url?: string;
+  note?: string;
+}) {
+  const lines: string[] = ["BEGIN:VCARD", "VERSION:3.0"];
+  lines.push(`FN:${escVCard(input.fullName)}`);
+  if (input.organization) lines.push(`ORG:${escVCard(input.organization)}`);
+  if (input.title) lines.push(`TITLE:${escVCard(input.title)}`);
+  if (input.phone) lines.push(`TEL;TYPE=CELL:${escVCard(input.phone)}`);
+  if (input.email) lines.push(`EMAIL;TYPE=INTERNET:${escVCard(input.email)}`);
+  if (input.url) lines.push(`URL:${escVCard(input.url)}`);
+  if (input.note) lines.push(`NOTE:${escVCard(input.note)}`);
+  lines.push("END:VCARD");
+  return lines.join("\r\n");
+}

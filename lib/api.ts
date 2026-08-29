@@ -217,3 +217,43 @@ export async function getMyOrgs(): Promise<MyOrg[]> {
   if (!res.ok) throw new Error(data.error ?? "Error al cargar organizaciones");
   return data as MyOrg[];
 }
+
+// ─── IA ──────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/ai/card-text
+ * Genera texto (bio, descripción) usando IA. Solo disponible en plan Pro/Empresa.
+ * Cupo: 4 textos/mes por usuario.
+ */
+export async function generateAiBio(prompt: string): Promise<{ text: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/ai/card-text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al generar texto con IA");
+  return data as { text: string };
+}
+
+// ─── Analíticas ───────────────────────────────────────────────────────────────
+
+export type ProfileStats = {
+  weekViews: number;
+  monthViews: number;
+  totalViews: number;
+};
+
+/**
+ * GET /api/v1/profile/:profileId/stats
+ * Devuelve vistas de la tarjeta: última semana, último mes y totales.
+ * Solo disponible en plan Pro/Empresa.
+ */
+export async function getProfileStats(profileId: string): Promise<ProfileStats> {
+  const res = await fetch(`${API_BASE}/api/v1/profile/${profileId}/stats`, {
+    headers: await authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al cargar analíticas");
+  return data as ProfileStats;
+}

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, Image,
+  ScrollView, ActivityIndicator, Alert, Image, Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { getProfile, updateProfile, type ProfileDetail, API_BASE } from "@/lib/api";
+import { getProfile, updateProfile, generateAiBio, type ProfileDetail, API_BASE } from "@/lib/api";
 import * as SecureStore from "expo-secure-store";
 import { Button, Card, SectionLabel } from "@/components/ui";
 import { colors, radius, spacing, font } from "@/lib/theme";
@@ -164,6 +164,7 @@ export default function EditScreen() {
   const [profile, setProfile] = useState<ProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
   const [displayName, setDisplayName] = useState("");
   const [title, setTitle] = useState("");
@@ -260,6 +261,27 @@ export default function EditScreen() {
     }
   }
 
+  async function handleGenerateAiBio() {
+    if (!displayName.trim()) {
+      Alert.alert("Falta el nombre", "Completá tu nombre primero para que la IA pueda generar la bio.");
+      return;
+    }
+    setGeneratingAi(true);
+    try {
+      const prompt = [
+        displayName.trim(),
+        title.trim() ? `Rol: ${title.trim()}` : "",
+        "Generá una bio profesional breve (2-3 oraciones) en primera persona en español.",
+      ].filter(Boolean).join(". ");
+      const { text } = await generateAiBio(prompt);
+      setBio(text.trim());
+    } catch (e: unknown) {
+      Alert.alert("Error IA", e instanceof Error ? e.message : "No se pudo generar la bio.");
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
+
   function addLink() {
     if (!isPro && links.length >= FREE_LINK_LIMIT) return;
     setLinks((prev) => [...prev, { title: "", url: "", sortOrder: prev.length }]);
@@ -331,13 +353,35 @@ export default function EditScreen() {
       />
 
       {isPro ? (
-        <Field
-          label="Bio"
-          value={bio}
-          onChangeText={setBio}
-          placeholder="Una descripción breve de quién sos..."
-          multiline
-        />
+        <View style={st.fieldWrap}>
+          <View style={st.labelRow}>
+            <Text style={st.label}>Bio</Text>
+            <TouchableOpacity
+              style={st.aiBadge}
+              onPress={handleGenerateAiBio}
+              activeOpacity={0.8}
+              disabled={generatingAi}
+            >
+              {generatingAi ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : (
+                <>
+                  <Feather name="zap" size={11} color={colors.accent} />
+                  <Text style={st.aiBadgeText}>Generar con IA</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={[st.input, st.inputMultiline]}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Una descripción breve de quién sos..."
+            placeholderTextColor={colors.faint}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
       ) : (
         <LockedField label="Bio" />
       )}
@@ -419,6 +463,30 @@ export default function EditScreen() {
           <Feather name="plus" size={16} color={colors.accent} />
           <Text style={st.addLinkText}>Agregar link</Text>
         </TouchableOpacity>
+      )}
+
+      {/* Branding personalizado (Pro) */}
+      {isPro && (
+        <>
+          <SectionLabel>Marca personal</SectionLabel>
+          <TouchableOpacity
+            style={st.brandingRow}
+            activeOpacity={0.8}
+            onPress={() => {
+              const orgSlug = profile?.organization.slug ?? "";
+              Linking.openURL(`${API_BASE}/dashboard/${orgSlug}/settings`);
+            }}
+          >
+            <View style={st.brandingIcon}>
+              <Feather name="sliders" size={18} color={colors.accent} />
+            </View>
+            <View style={st.brandingInfo}>
+              <Text style={st.brandingTitle}>Personalizar logo y colores</Text>
+              <Text style={st.brandingHint}>Gestionar desde lubale.app →</Text>
+            </View>
+            <Feather name="external-link" size={16} color={colors.faint} />
+          </TouchableOpacity>
+        </>
       )}
 
       {/* Save */}
@@ -589,4 +657,42 @@ const st = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   upgradePromptText: { fontSize: font.sm, color: colors.pro, fontWeight: font.semibold },
+
+  // ── AI badge
+  aiBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    minWidth: 36,
+    justifyContent: "center",
+  },
+  aiBadgeText: { fontSize: font.xs, color: colors.accent, fontWeight: font.semibold },
+
+  // ── Branding row
+  brandingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  brandingIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brandingInfo: { flex: 1 },
+  brandingTitle: { fontSize: font.base, fontWeight: font.semibold, color: colors.ink },
+  brandingHint: { fontSize: font.xs, color: colors.muted, marginTop: 2 },
 });
