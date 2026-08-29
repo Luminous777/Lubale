@@ -1,472 +1,591 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ScrollView, Image,
 } from "react-native";
 import { useRouter, Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { registerPersonal, registerPro, registerInvite, login } from "@/lib/api";
+import {
+  registerPersonal, registerPro, registerInvite,
+  login, getMyOrgs, updateProfile,
+} from "@/lib/api";
 import { setUserPlan } from "@/lib/storage";
 import { Button, IconBadge } from "@/components/ui";
 import { colors, radius, spacing, font } from "@/lib/theme";
 
-type PlanStep = "select" | "free" | "pro" | "invite";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Plan = "gratis" | "pro" | "empresa";
+type Step = "plan" | "build" | "save";
+
+interface CardData {
+  name: string;
+  title: string;
+  bio: string;
+  phone: string;
+  emailPublic: string;
+  inviteCode: string;
+}
 
 function toSlug(val: string) {
   return val
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 32);
 }
 
+function nameInitials(name: string) {
+  return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+}
+
+// ─── Live card preview ────────────────────────────────────────────────────────
+
+function CardPreview({ card }: { card: CardData }) {
+  const hasContact = card.phone.trim() || card.emailPublic.trim();
+  return (
+    <View style={prev.wrap}>
+      <View style={prev.card}>
+        <View style={prev.header}>
+          <View style={prev.avatar}>
+            <Text style={prev.avatarText}>{nameInitials(card.name) || "?"}</Text>
+          </View>
+          <View style={prev.nameBlock}>
+            <Text style={prev.name} numberOfLines={1}>
+              {card.name.trim() || "Tu nombre"}
+            </Text>
+            {card.title.trim() ? (
+              <Text style={prev.jobTitle} numberOfLines={1}>{card.title}</Text>
+            ) : null}
+          </View>
+        </View>
+        {hasContact ? (
+          <View style={prev.contactRow}>
+            {card.phone.trim() ? (
+              <View style={prev.contactItem}>
+                <Feather name="phone" size={12} color={colors.muted} />
+                <Text style={prev.contactText} numberOfLines={1}>{card.phone}</Text>
+              </View>
+            ) : null}
+            {card.emailPublic.trim() ? (
+              <View style={prev.contactItem}>
+                <Feather name="mail" size={12} color={colors.muted} />
+                <Text style={prev.contactText} numberOfLines={1}>{card.emailPublic}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {card.bio.trim() ? (
+          <Text style={prev.bio} numberOfLines={2}>{card.bio}</Text>
+        ) : null}
+      </View>
+      <View style={prev.labelRow}>
+        <Feather name="eye" size={11} color={colors.faint} />
+        <Text style={prev.label}>Vista previa en tiempo real</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Field ────────────────────────────────────────────────────────────────────
+
+function Field({
+  label, value, onChangeText, placeholder, multiline, keyboardType, secureTextEntry,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  keyboardType?: React.ComponentProps<typeof TextInput>["keyboardType"];
+  secureTextEntry?: boolean;
+}) {
+  return (
+    <View style={st.fieldWrap}>
+      <Text style={st.label}>{label}</Text>
+      <TextInput
+        style={[st.input, multiline && st.inputMultiline]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.faint}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        keyboardType={keyboardType}
+        secureTextEntry={secureTextEntry}
+        autoCapitalize={
+          secureTextEntry || keyboardType === "email-address" || keyboardType === "url"
+            ? "none"
+            : "sentences"
+        }
+      />
+    </View>
+  );
+}
+
+// ─── Root screen ──────────────────────────────────────────────────────────────
+
 export default function RegisterScreen() {
-  const [step, setStep] = useState<PlanStep>("select");
+  const router = useRouter();
+
+  const [step, setStep] = useState<Step>("plan");
+  const [plan, setPlan] = useState<Plan>("gratis");
+  const [card, setCard] = useState<CardData>({
+    name: "", title: "", bio: "", phone: "", emailPublic: "", inviteCode: "",
+  });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function updateCard(key: keyof CardData, value: string) {
+    setCard((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleSelectPlan(p: Plan) {
+    setPlan(p);
+    setStep("build");
+  }
+
+  async function handleCreate() {
+    if (!email.trim() || !password) {
+      Alert.alert("Campos incompletos", "Ingresá tu email y contraseña.");
+      return;
+    }
+    if (!card.name.trim()) {
+      Alert.alert("Falta el nombre", "Volvé al paso anterior y completá tu nombre.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const handle = toSlug(card.name) || "usuario";
+
+      // 1. Registrar según plan
+      if (plan === "empresa") {
+        await registerInvite({
+          inviteCode: card.inviteCode.trim(),
+          name: card.name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        });
+      } else if (plan === "pro") {
+        await registerPro({
+          name: card.name.trim(),
+          handle,
+          email: email.trim().toLowerCase(),
+          password,
+        });
+      } else {
+        await registerPersonal({
+          name: card.name.trim(),
+          handle,
+          email: email.trim().toLowerCase(),
+          password,
+        });
+      }
+
+      // 2. Login automático
+      await login(email.trim().toLowerCase(), password);
+
+      // 3. Guardar plan en SecureStore
+      await setUserPlan(plan === "empresa" ? "empresa" : plan === "pro" ? "pro" : "gratis");
+
+      // 4. Volcar datos de la tarjeta al perfil recién creado
+      try {
+        const orgs = await getMyOrgs();
+        const firstProfile = orgs.flatMap((o) => o.profiles)[0];
+        if (firstProfile) {
+          await updateProfile(firstProfile.id, {
+            displayName: card.name.trim(),
+            title: card.title.trim() || undefined,
+            bio: plan !== "gratis" ? (card.bio.trim() || undefined) : undefined,
+            phone: card.phone.trim() || undefined,
+            emailPublic: plan !== "gratis" ? (card.emailPublic.trim() || undefined) : undefined,
+            links: [],
+          });
+        }
+      } catch {
+        // Si falla el update del perfil no bloqueamos el flujo
+      }
+
+      router.replace("/(home)/");
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "No se pudo crear la cuenta.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={st.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        {step === "select" && <PlanSelect onSelect={setStep} />}
-        {step === "free"   && <FreeForm   onBack={() => setStep("select")} />}
-        {step === "pro"    && <ProForm    onBack={() => setStep("select")} />}
-        {step === "invite" && <InviteForm onBack={() => setStep("select")} />}
+      <ScrollView contentContainerStyle={st.scroll} keyboardShouldPersistTaps="handled">
 
-        {step === "select" && (
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>¿Ya tenés cuenta? </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text style={styles.link}>Iniciá sesión</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
+        {/* ── Paso 1: Elegí tu plan ── */}
+        {step === "plan" && (
+          <StepPlan onSelect={handleSelectPlan} />
         )}
+
+        {/* ── Paso 2: Construí tu tarjeta ── */}
+        {step === "build" && (
+          <StepBuild
+            plan={plan}
+            card={card}
+            onChange={updateCard}
+            onBack={() => setStep("plan")}
+            onNext={() => setStep("save")}
+          />
+        )}
+
+        {/* ── Paso 3: Registrate para guardarla ── */}
+        {step === "save" && (
+          <StepSave
+            plan={plan}
+            card={card}
+            email={email}
+            password={password}
+            loading={loading}
+            onChangeEmail={setEmail}
+            onChangePassword={setPassword}
+            onBack={() => setStep("build")}
+            onCreate={handleCreate}
+          />
+        )}
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Reusable input ──────────────────────────────────────────────────────────
+// ─── Paso 1: Selector de plan ─────────────────────────────────────────────────
 
-function LabeledInput({
-  label, style, ...props
-}: { label: string } & React.ComponentProps<typeof TextInput> & { style?: object }) {
+function StepPlan({ onSelect }: { onSelect: (p: Plan) => void }) {
   return (
-    <>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        style={[styles.input, style]}
-        placeholderTextColor={colors.faint}
-        {...props}
-      />
-    </>
+    <View style={st.stepWrap}>
+      {/* Header */}
+      <View style={st.header}>
+        <IconBadge icon="credit-card" tone="accent" size={52} />
+        <Text style={st.title}>Creá tu tarjeta</Text>
+        <Text style={st.subtitle}>Elegí el plan que mejor se adapte a vos</Text>
+      </View>
+
+      {/* Plan cards */}
+      <View style={st.planList}>
+
+        {/* Gratis */}
+        <TouchableOpacity style={st.planCard} onPress={() => onSelect("gratis")} activeOpacity={0.75}>
+          <View style={[st.planIcon, { backgroundColor: colors.surfaceMuted }]}>
+            <Feather name="star" size={20} color={colors.muted} />
+          </View>
+          <View style={st.planInfo}>
+            <View style={st.planTitleRow}>
+              <Text style={st.planName}>Gratis</Text>
+              <Text style={st.planPrice}>Sin costo</Text>
+            </View>
+            <Text style={st.planSub}>Para empezar</Text>
+            <View style={st.featureList}>
+              {["Foto de perfil", "Nombre y puesto", "1 link de WhatsApp"].map((f) => (
+                <View key={f} style={st.featureRow}>
+                  <Feather name="check" size={13} color={colors.success} />
+                  <Text style={st.featureText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.faint} />
+        </TouchableOpacity>
+
+        {/* Pro */}
+        <TouchableOpacity
+          style={[st.planCard, st.planCardPro]}
+          onPress={() => onSelect("pro")}
+          activeOpacity={0.75}
+        >
+          <View style={st.planBadgePro}>
+            <Text style={st.planBadgeText}>✨ Recomendado</Text>
+          </View>
+          <View style={[st.planIcon, { backgroundColor: colors.accentSoft }]}>
+            <Feather name="zap" size={20} color={colors.accent} />
+          </View>
+          <View style={st.planInfo}>
+            <View style={st.planTitleRow}>
+              <Text style={[st.planName, { color: colors.accent }]}>Pro</Text>
+              <Text style={st.planPrice}>Próximamente</Text>
+            </View>
+            <Text style={st.planSub}>Para profesionales</Text>
+            <View style={st.featureList}>
+              {["Todo lo de Gratis", "Bio y email público", "Links ilimitados", "Analíticas"].map((f) => (
+                <View key={f} style={st.featureRow}>
+                  <Feather name="check" size={13} color={colors.success} />
+                  <Text style={st.featureText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.accent} />
+        </TouchableOpacity>
+
+        {/* Empresa */}
+        <TouchableOpacity style={st.planCard} onPress={() => onSelect("empresa")} activeOpacity={0.75}>
+          <View style={[st.planIcon, { backgroundColor: "#EFF6FF" }]}>
+            <Feather name="briefcase" size={20} color="#3B82F6" />
+          </View>
+          <View style={st.planInfo}>
+            <Text style={st.planName}>Empresa</Text>
+            <Text style={st.planSub}>Ingresá con código de invitación</Text>
+            <View style={st.featureList}>
+              {["Todo lo de Pro", "Gestión de equipo", "Branding de empresa"].map((f) => (
+                <View key={f} style={st.featureRow}>
+                  <Feather name="check" size={13} color={colors.success} />
+                  <Text style={st.featureText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.faint} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Footer */}
+      <Link href="/(auth)/login" asChild>
+        <TouchableOpacity style={st.footer}>
+          <Text style={st.footerText}>¿Ya tenés cuenta? </Text>
+          <Text style={st.footerLink}>Iniciá sesión</Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
   );
 }
 
-// ─── Plan selector ────────────────────────────────────────────────────────────
+// ─── Paso 2: Construí tu tarjeta ──────────────────────────────────────────────
 
-function PlanSelect({ onSelect }: { onSelect: (step: PlanStep) => void }) {
+function StepBuild({
+  plan, card, onChange, onBack, onNext,
+}: {
+  plan: Plan;
+  card: CardData;
+  onChange: (key: keyof CardData, value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const isPro = plan === "pro" || plan === "empresa";
+
   return (
-    <>
-      <View style={styles.header}>
-        <IconBadge icon="credit-card" tone="accent" size={56} />
-        <Text style={styles.title}>Creá tu tarjeta</Text>
-        <Text style={styles.subtitle}>Elegí el plan que mejor se adapte a vos</Text>
-      </View>
-
-      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("free")} activeOpacity={0.85}>
-        <IconBadge icon="user" tone="neutral" size={44} />
-        <View style={styles.planBody}>
-          <View style={styles.planHeaderRow}>
-            <Text style={styles.planTitle}>Gratis</Text>
-            <Text style={styles.planPrice}>$0</Text>
-          </View>
-          <Text style={styles.planDesc}>Tu tarjeta digital personal en segundos</Text>
-        </View>
+    <View style={st.stepWrap}>
+      {/* Back */}
+      <TouchableOpacity style={st.backBtn} onPress={onBack} hitSlop={8}>
+        <Feather name="arrow-left" size={20} color={colors.accent} />
+        <Text style={st.backText}>Cambiar plan</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.planCard, styles.planCardPro]} onPress={() => onSelect("pro")} activeOpacity={0.85}>
-        <IconBadge icon="zap" tone="pro" size={44} />
-        <View style={styles.planBody}>
-          <View style={styles.planHeaderRow}>
-            <Text style={styles.planTitle}>Pro</Text>
-            <Text style={styles.planPricePro}>$9 / mes</Text>
-          </View>
-          <Text style={styles.planDesc}>Más personalización, estadísticas y soporte prioritario</Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.planCard} onPress={() => onSelect("invite")} activeOpacity={0.85}>
-        <IconBadge icon="briefcase" tone="neutral" size={44} />
-        <View style={styles.planBody}>
-          <View style={styles.planHeaderRow}>
-            <Text style={styles.planTitle}>Tarjeta de empresa</Text>
-          </View>
-          <Text style={styles.planDesc}>¿Tu empresa ya usa Mi Tarjeta? Sumate con un código de invitación</Text>
-        </View>
-      </TouchableOpacity>
-    </>
-  );
-}
-
-// ─── Back row ─────────────────────────────────────────────────────────────────
-
-function BackRow({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.backRow} hitSlop={8}>
-      <Feather name="chevron-left" size={18} color={colors.accent} />
-      <Text style={styles.backText}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// ─── Plan Gratis ──────────────────────────────────────────────────────────────
-
-function FreeForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [handle, setHandle] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  function onNameChange(val: string) {
-    setName(val);
-    setHandle(toSlug(val));
-  }
-
-  async function handleRegister() {
-    if (!name.trim() || !handle.trim() || !email.trim() || password.length < 8) {
-      Alert.alert("Datos incompletos", "Completá todos los campos. La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await registerPersonal({ name: name.trim(), handle: handle.trim(), email: email.trim().toLowerCase(), password });
-      await login(email.trim().toLowerCase(), password);
-      await setUserPlan("gratis");
-      router.replace("/(home)/");
-    } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Error al registrarse");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <BackRow label="Cambiar plan" onPress={onBack} />
-
-      <View style={styles.header}>
-        <IconBadge icon="user" tone="accent" size={52} />
-        <Text style={styles.title}>Crear tarjeta gratis</Text>
-        <Text style={styles.subtitle}>Tu tarjeta digital en segundos</Text>
-      </View>
-
-      <View style={styles.form}>
-        <LabeledInput
-          label="Nombre visible"
-          value={name}
-          onChangeText={onNameChange}
-          placeholder="Juan Pérez"
-          textContentType="name"
-        />
-
-        <Text style={[styles.label, { marginTop: spacing.lg }]}>Tu URL pública</Text>
-        <View style={styles.handleRow}>
-          <Text style={styles.handlePrefix}>tarjeta.app/</Text>
-          <TextInput
-            style={[styles.input, styles.handleInput]}
-            value={handle}
-            onChangeText={setHandle}
-            autoCapitalize="none"
-            placeholder="juan-perez"
-            placeholderTextColor={colors.faint}
-          />
-        </View>
-
-        <View style={{ marginTop: spacing.lg }}>
-          <LabeledInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            placeholder="tu@email.com"
-          />
-        </View>
-
-        <View style={{ marginTop: spacing.lg }}>
-          <LabeledInput
-            label="Contraseña"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            placeholder="Mínimo 8 caracteres"
-          />
-        </View>
-
-        <Button
-          label="Crear mi tarjeta"
-          onPress={handleRegister}
-          loading={loading}
-          style={{ marginTop: spacing["2xl"] }}
-        />
-      </View>
-    </>
-  );
-}
-
-// ─── Plan Pro ─────────────────────────────────────────────────────────────────
-
-function ProForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [handle, setHandle] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  function onNameChange(val: string) {
-    setName(val);
-    setHandle(toSlug(val));
-  }
-
-  async function handleRegister() {
-    if (!name.trim() || !handle.trim() || !email.trim() || password.length < 8) {
-      Alert.alert("Datos incompletos", "Completá todos los campos. La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await registerPro({ name: name.trim(), handle: handle.trim(), email: email.trim().toLowerCase(), password });
-      await login(email.trim().toLowerCase(), password);
-      await setUserPlan("pro");
-      router.replace("/(home)/");
-    } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Error al registrarse en plan Pro");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <BackRow label="Cambiar plan" onPress={onBack} />
-
-      <View style={styles.header}>
-        <IconBadge icon="zap" tone="pro" size={52} />
-        <Text style={styles.title}>Plan Pro</Text>
-        <Text style={styles.subtitle}>Estadísticas, personalización avanzada y soporte prioritario</Text>
-      </View>
-
-      <View style={styles.form}>
-        <LabeledInput
-          label="Nombre visible"
-          value={name}
-          onChangeText={onNameChange}
-          placeholder="Juan Pérez"
-          textContentType="name"
-        />
-
-        <Text style={[styles.label, { marginTop: spacing.lg }]}>Tu URL pública</Text>
-        <View style={styles.handleRow}>
-          <Text style={styles.handlePrefix}>tarjeta.app/</Text>
-          <TextInput
-            style={[styles.input, styles.handleInput]}
-            value={handle}
-            onChangeText={setHandle}
-            autoCapitalize="none"
-            placeholder="juan-perez"
-            placeholderTextColor={colors.faint}
-          />
-        </View>
-
-        <View style={{ marginTop: spacing.lg }}>
-          <LabeledInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            placeholder="tu@email.com"
-          />
-        </View>
-
-        <View style={{ marginTop: spacing.lg }}>
-          <LabeledInput
-            label="Contraseña"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="newPassword"
-            placeholder="Mínimo 8 caracteres"
-          />
-        </View>
-
-        <Button
-          label="Activar plan Pro"
-          variant="pro"
-          icon="zap"
-          onPress={handleRegister}
-          loading={loading}
-          style={{ marginTop: spacing["2xl"] }}
-        />
-      </View>
-    </>
-  );
-}
-
-// ─── Tarjeta de empresa (invite code) ────────────────────────────────────────
-
-type InviteStep = "code" | "details";
-
-function InviteForm({ onBack }: { onBack: () => void }) {
-  const router = useRouter();
-  const [inviteStep, setInviteStep] = useState<InviteStep>("code");
-  const [inviteCode, setInviteCode] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  function handleCodeNext() {
-    if (!inviteCode.trim()) {
-      Alert.alert("Código requerido", "Ingresá el código de invitación que te compartió tu empresa.");
-      return;
-    }
-    setInviteStep("details");
-  }
-
-  async function handleRegister() {
-    if (!name.trim() || !email.trim() || password.length < 8) {
-      Alert.alert("Datos incompletos", "Completá todos los campos. La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await registerInvite({
-        inviteCode: inviteCode.trim().toUpperCase(),
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      await login(email.trim().toLowerCase(), password);
-      await setUserPlan("empresa");
-      router.replace("/(home)/");
-    } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Código inválido o error al registrarse");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <>
-      <BackRow
-        label={inviteStep === "details" ? "Volver" : "Cambiar plan"}
-        onPress={inviteStep === "details" ? () => setInviteStep("code") : onBack}
-      />
-
-      <View style={styles.header}>
-        <IconBadge icon="briefcase" tone="accent" size={52} />
-        <Text style={styles.title}>Tarjeta de empresa</Text>
-        <Text style={styles.subtitle}>
-          {inviteStep === "code"
-            ? "Ingresá el código de invitación que te compartió tu empresa"
-            : "Completá tus datos para crear tu tarjeta"}
+      {/* Plan chip */}
+      <View style={st.stepChip}>
+        <Text style={st.stepChipText}>
+          {plan === "gratis" ? "⭐ Gratis" : plan === "pro" ? "⚡ Pro" : "🏢 Empresa"}
         </Text>
       </View>
 
-      {/* Indicador de paso */}
-      <View style={styles.stepRow}>
-        <View style={[styles.stepDot, inviteStep === "code" && styles.stepDotActive]} />
-        <View style={styles.stepLine} />
-        <View style={[styles.stepDot, inviteStep === "details" && styles.stepDotActive]} />
-      </View>
+      <Text style={st.title}>Construí tu tarjeta</Text>
+      <Text style={st.subtitle}>Completá tus datos — podés cambiarlos después</Text>
 
-      <View style={styles.form}>
-        {inviteStep === "code" ? (
-          <>
-            <LabeledInput
-              label="Código de invitación"
-              style={styles.inputCode}
-              value={inviteCode}
-              onChangeText={setInviteCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              placeholder="ABC-123"
-            />
-            <Button
-              label="Continuar"
-              icon="arrow-right"
-              onPress={handleCodeNext}
-              style={{ marginTop: spacing["2xl"] }}
-            />
-          </>
-        ) : (
-          <>
-            <LabeledInput
-              label="Tu nombre"
-              value={name}
-              onChangeText={setName}
-              placeholder="Juan Pérez"
-              textContentType="name"
-            />
+      {/* Live preview */}
+      <CardPreview card={card} />
 
-            <View style={{ marginTop: spacing.lg }}>
-              <LabeledInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                placeholder="tu@empresa.com"
-              />
-            </View>
+      {/* Invite code — solo Empresa */}
+      {plan === "empresa" && (
+        <Field
+          label="Código de invitación"
+          value={card.inviteCode}
+          onChangeText={(v) => onChange("inviteCode", v)}
+          placeholder="Código que te mandó tu empresa"
+        />
+      )}
 
-            <View style={{ marginTop: spacing.lg }}>
-              <LabeledInput
-                label="Contraseña"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                textContentType="newPassword"
-                placeholder="Mínimo 8 caracteres"
-              />
-            </View>
+      {/* Campos comunes */}
+      <Field
+        label="Nombre completo"
+        value={card.name}
+        onChangeText={(v) => onChange("name", v)}
+        placeholder="Juan Pérez"
+      />
+      <Field
+        label="Puesto / Rol"
+        value={card.title}
+        onChangeText={(v) => onChange("title", v)}
+        placeholder="Diseñador UX"
+      />
 
-            <Button
-              label="Unirme a la empresa"
-              onPress={handleRegister}
-              loading={loading}
-              style={{ marginTop: spacing["2xl"] }}
-            />
-          </>
-        )}
-      </View>
-    </>
+      {/* Bio — solo Pro/Empresa */}
+      {isPro && (
+        <Field
+          label="Bio (opcional)"
+          value={card.bio}
+          onChangeText={(v) => onChange("bio", v)}
+          placeholder="Contá algo sobre vos..."
+          multiline
+        />
+      )}
+
+      <Field
+        label="Teléfono / WhatsApp"
+        value={card.phone}
+        onChangeText={(v) => onChange("phone", v)}
+        placeholder="+54 11 1234-5678"
+        keyboardType="phone-pad"
+      />
+
+      {/* Email público — solo Pro/Empresa */}
+      {isPro && (
+        <Field
+          label="Email público (opcional)"
+          value={card.emailPublic}
+          onChangeText={(v) => onChange("emailPublic", v)}
+          placeholder="contacto@email.com"
+          keyboardType="email-address"
+        />
+      )}
+
+      <Button
+        label="Ver mi tarjeta →"
+        onPress={onNext}
+        style={{ marginTop: spacing.lg }}
+      />
+    </View>
   );
 }
 
-// ─── Estilos ────────────────────────────────────────────────────────────────
+// ─── Paso 3: Registrate ───────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function StepSave({
+  plan, card, email, password, loading,
+  onChangeEmail, onChangePassword, onBack, onCreate,
+}: {
+  plan: Plan;
+  card: CardData;
+  email: string;
+  password: string;
+  loading: boolean;
+  onChangeEmail: (v: string) => void;
+  onChangePassword: (v: string) => void;
+  onBack: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <View style={st.stepWrap}>
+      {/* Back */}
+      <TouchableOpacity style={st.backBtn} onPress={onBack} hitSlop={8}>
+        <Feather name="arrow-left" size={20} color={colors.accent} />
+        <Text style={st.backText}>Editar tarjeta</Text>
+      </TouchableOpacity>
+
+      <Text style={st.title}>Guardá tu tarjeta</Text>
+      <Text style={st.subtitle}>Creá tu cuenta para acceder y compartirla</Text>
+
+      {/* Preview readonly */}
+      <CardPreview card={card} />
+
+      {/* Credentials */}
+      <Field
+        label="Email"
+        value={email}
+        onChangeText={onChangeEmail}
+        placeholder="tu@email.com"
+        keyboardType="email-address"
+      />
+      <Field
+        label="Contraseña"
+        value={password}
+        onChangeText={onChangePassword}
+        placeholder="Mínimo 8 caracteres"
+        secureTextEntry
+      />
+
+      <Button
+        label="Crear mi tarjeta"
+        onPress={onCreate}
+        loading={loading}
+        style={{ marginTop: spacing.xl }}
+      />
+
+      <Link href="/(auth)/login" asChild>
+        <TouchableOpacity style={st.footer}>
+          <Text style={st.footerText}>¿Ya tenés cuenta? </Text>
+          <Text style={st.footerLink}>Iniciá sesión</Text>
+        </TouchableOpacity>
+      </Link>
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  inner: { flexGrow: 1, justifyContent: "center", paddingHorizontal: spacing["3xl"], paddingVertical: spacing["4xl"] },
-  header: { alignItems: "center", marginBottom: spacing["2xl"] },
-  title: { fontSize: font.xl, fontWeight: font.bold, color: colors.ink, textAlign: "center", marginTop: spacing.lg, letterSpacing: -0.3 },
-  subtitle: { fontSize: font.sm, color: colors.muted, marginTop: 6, textAlign: "center", lineHeight: 20 },
-  form: {},
+  scroll: { flexGrow: 1, paddingHorizontal: spacing["2xl"], paddingVertical: spacing["3xl"] },
+  stepWrap: { flex: 1 },
+
+  header: { alignItems: "center", gap: spacing.md, marginBottom: spacing["3xl"] },
+  title: { fontSize: font.xl, fontWeight: font.bold, color: colors.ink, letterSpacing: -0.3, textAlign: "center", marginBottom: 4 },
+  subtitle: { fontSize: font.sm, color: colors.muted, textAlign: "center", marginBottom: spacing.xl },
+
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.xl },
+  backText: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
+
+  stepChip: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  stepChipText: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
+
+  // Plan cards
+  planList: { gap: spacing.md, marginBottom: spacing["2xl"] },
+  planCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  planCardPro: {
+    borderColor: colors.accent,
+    backgroundColor: "#FAFAFE",
+    paddingTop: spacing["2xl"] + 4,
+    position: "relative",
+  },
+  planBadgePro: {
+    position: "absolute",
+    top: 0,
+    right: spacing.lg,
+    backgroundColor: colors.accent,
+    borderRadius: 0,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
+  planBadgeText: { fontSize: font.xs, fontWeight: font.semibold, color: colors.onAccent },
+  planIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  planInfo: { flex: 1 },
+  planTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  planName: { fontSize: font.md, fontWeight: font.bold, color: colors.ink },
+  planPrice: { fontSize: font.xs, color: colors.muted },
+  planSub: { fontSize: font.xs, color: colors.muted, marginBottom: spacing.md },
+  featureList: { gap: 5 },
+  featureRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  featureText: { fontSize: font.sm, color: colors.ink },
+
+  // Fields
+  fieldWrap: { marginBottom: spacing.lg },
   label: { fontSize: font.sm, fontWeight: font.semibold, color: colors.ink, marginBottom: spacing.sm },
   input: {
     backgroundColor: colors.surface,
@@ -478,54 +597,46 @@ const styles = StyleSheet.create({
     fontSize: font.base,
     color: colors.ink,
   },
-  inputCode: {
-    fontSize: font.xl,
-    fontWeight: font.bold,
-    letterSpacing: 6,
-    textAlign: "center",
-    color: colors.ink,
-  },
-  handleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  handlePrefix: { fontSize: font.sm, color: colors.muted, fontWeight: font.medium },
-  handleInput: { flex: 1 },
-  footer: { flexDirection: "row", justifyContent: "center", marginTop: spacing["3xl"] },
+  inputMultiline: { height: 80, textAlignVertical: "top", paddingTop: spacing.md },
+
+  footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: spacing["2xl"] },
   footerText: { fontSize: font.sm, color: colors.muted },
-  link: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
-  backRow: { flexDirection: "row", alignItems: "center", gap: 2, marginBottom: spacing.sm },
-  backText: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
-  planCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
+  footerLink: { fontSize: font.sm, color: colors.accent, fontWeight: font.semibold },
+});
+
+// ─── Preview styles ───────────────────────────────────────────────────────────
+
+const prev = StyleSheet.create({
+  wrap: { marginBottom: spacing.xl },
+  card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: spacing.xl,
-    marginBottom: spacing.md,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: "#14142B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  planCardPro: {
-    borderColor: colors.proBorder,
-    backgroundColor: colors.proSoft,
-  },
-  planBody: { flex: 1 },
-  planHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  planTitle: { fontSize: font.md, fontWeight: font.bold, color: colors.ink },
-  planPrice: { fontSize: font.base, fontWeight: font.bold, color: colors.ink },
-  planPricePro: { fontSize: font.base, fontWeight: font.bold, color: colors.pro },
-  planDesc: { fontSize: font.sm, color: colors.muted, marginTop: 4, lineHeight: 18 },
-  stepRow: {
-    flexDirection: "row",
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.md },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing["2xl"],
   },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.border,
-  },
-  stepDotActive: { backgroundColor: colors.accent },
-  stepLine: { width: 48, height: 2, backgroundColor: colors.border, marginHorizontal: 6 },
+  avatarText: { fontSize: font.md, fontWeight: font.bold, color: colors.accent },
+  nameBlock: { flex: 1 },
+  name: { fontSize: font.base, fontWeight: font.bold, color: colors.ink },
+  jobTitle: { fontSize: font.sm, color: colors.muted, marginTop: 2 },
+  contactRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginBottom: spacing.sm },
+  contactItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  contactText: { fontSize: font.xs, color: colors.muted },
+  bio: { fontSize: font.xs, color: colors.muted, lineHeight: 18, marginTop: 4 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, justifyContent: "center" },
+  label: { fontSize: font.xs, color: colors.faint },
 });
