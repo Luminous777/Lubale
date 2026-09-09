@@ -1,216 +1,235 @@
-import Link from "next/link";
-import { MarketingHeader } from "@/components/MarketingHeader";
-import {
-  ANNUAL_TRANSFER_DISCOUNT,
-  PRICES_ARS_CENTS,
-  priceAnnualTransferCents,
-} from "@/lib/plan";
+'use client';
 
-export const metadata = {
-  title: "Precios — Tarjetas digitales",
-  description:
-    "Plan gratis para particulares, plan Pro para profesionales y plan Empresa para equipos.",
-};
+// Next.js no permite `export const metadata` en Client Components.
+// Si necesitás metadata para SEO, creá un precios/layout.tsx server component con el export.
 
-function ars(cents: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
-}
+import { useState } from 'react';
+import Link from 'next/link';
+
+type Cycle = 'mensual' | 'anual';
+
+const PLANS = [
+  {
+    key: 'free',
+    name: 'Esencial',
+    price: { mensual: 'Gratis', anual: 'Gratis' },
+    unit: '',
+    tag: null,
+    desc: 'Para probar el formato antes de llevarlo al equipo.',
+    cta: 'Empezar gratis',
+    href: '/crear',
+    items: [
+      '1 tarjeta digital',
+      'Link y QR propios',
+      'Solo un link de WhatsApp',
+      'Sin colores personalizados',
+      'Sin IA',
+    ],
+  },
+  {
+    key: 'pro',
+    name: 'Profesional',
+    price: { mensual: '$1.599', anual: '$1.439' },
+    unit: '/mes',
+    tag: 'Más elegido',
+    desc: 'Para un profesional independiente que vive de su red.',
+    cta: 'Probar 30 días',
+    href: '/crear?plan=pro',
+    items: [
+      'Tarjetas ilimitadas',
+      'Links ilimitados de cualquier tipo',
+      'Colores y fondo propios',
+      'IA de tarjeta · 4 generaciones/mes',
+      'Métricas y contactos recibidos',
+      'QR con logo',
+    ],
+  },
+  {
+    key: 'business',
+    name: 'Empresa',
+    price: { mensual: '$3.999', anual: '$3.599' },
+    unit: '/asiento',
+    tag: null,
+    desc: 'Para equipos comerciales con una marca que cuidar.',
+    cta: 'Hablar con ventas',
+    href: '/contacto?motivo=empresa',
+    items: [
+      'Todo Profesional',
+      'Panel de organización y roles',
+      'Asientos por empleado',
+      'IA de branding',
+      'Marca bloqueada para el equipo',
+      'Exportación e integraciones',
+    ],
+  },
+] as const;
+
+const FAQ = [
+  {
+    q: '¿Qué pasa con mi link si dejo de pagar?',
+    a: 'Tu tarjeta sigue online en el plan Esencial. Nunca se cae un link que ya compartiste.',
+  },
+  {
+    q: '¿Cómo funcionan los asientos?',
+    a: 'Cada persona del equipo con tarjeta propia ocupa un asiento. Podés sumar o quitar cuando quieras.',
+  },
+  {
+    q: '¿Puedo cambiar de plan a mitad de mes?',
+    a: 'Sí. Se prorratea la diferencia en el siguiente cargo de Mercado Pago.',
+  },
+];
 
 export default function PricingPage() {
-  const proAnnual = priceAnnualTransferCents(PRICES_ARS_CENTS.particularPro);
-  const extraAnnual = priceAnnualTransferCents(PRICES_ARS_CENTS.empleadoExtra);
-  const empresaAnnual = priceAnnualTransferCents(PRICES_ARS_CENTS.empresaPerSeat);
-  const discountPct = Math.round(ANNUAL_TRANSFER_DISCOUNT * 100);
+  const [cycle, setCycle] = useState<Cycle>('mensual');
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <MarketingHeader />
-      <main className="flex-1">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-14 px-6 py-16">
-          <header className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent">Precios</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-heading sm:text-5xl">
-              Un plan para cada tipo de profesional
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-muted">
-              Empezá gratis con tu tarjeta digital y un enlace de WhatsApp. Cuando lo necesites,
-              sumá IA, varios enlaces y marca personalizada.
-            </p>
-            <p className="mt-2 text-sm text-muted">
-              Pagando anual con transferencia, ahorrás un {discountPct}%.
-            </p>
-          </header>
+    <main className="bg-white">
+      {/* NAV */}
+      <header className="flex h-[66px] items-center justify-between border-b border-navy/[0.08] px-6 lg:px-12">
+        <Link href="/">
+          <span className="font-serif text-[22px] tracking-[0.08em] text-navy">LUBELA</span>
+        </Link>
+        <nav className="hidden items-center gap-7 text-[13.5px] text-navy/75 lg:flex">
+          <Link href="/precios" className="text-navy font-medium">Precios</Link>
+          <Link href="/login" className="hover:text-navy transition-colors">Ingresar</Link>
+          <Link
+            href="/crear"
+            className="rounded-[10px] bg-navy px-[19px] py-[11px] text-white hover:bg-navy-deep transition-colors"
+          >
+            Crear mi tarjeta
+          </Link>
+        </nav>
+        <Link
+          href="/crear"
+          className="rounded-[10px] bg-navy px-4 py-2.5 text-sm text-white lg:hidden"
+        >
+          Empezar
+        </Link>
+      </header>
 
-          <section className="grid gap-6 lg:grid-cols-4">
-            <PlanCard
-              title="Particular Free"
-              tagline="Para empezar."
-              priceLabel={ars(0)}
-              priceUnit="para siempre"
-              cta={{ href: "/signup/personal", label: "Crear gratis" }}
-              features={[
-                "1 tarjeta digital pública",
-                "Foto y datos básicos",
-                "1 enlace (solo WhatsApp)",
-                "URL pública con tu nombre",
-                "Sin generación con IA",
-              ]}
-            />
+      <div className="px-6 pb-16 pt-12 lg:px-12 lg:pb-16 lg:pt-14">
+        {/* Header */}
+        <header className="mb-3.5 flex flex-col items-center gap-3">
+          <h1 className="font-serif text-[42px] leading-[1.1] lg:text-[46px]">Precios claros</h1>
+          <p className="max-w-[520px] text-center text-[15.5px] leading-[1.6] text-muted">
+            Empezá gratis. Cambiá de plan cuando tu equipo crezca — tu link nunca deja de funcionar.
+          </p>
+        </header>
 
-            <PlanCard
-              title="Particular Pro"
-              tagline="Tu marca personal."
-              priceLabel={ars(PRICES_ARS_CENTS.particularPro)}
-              priceUnit="por mes"
-              annualHint={`o ${ars(proAnnual)}/año (-${discountPct}% con transferencia)`}
-              cta={{ href: "/signup/personal", label: "Empezar prueba" }}
-              highlight
-              features={[
-                "Todo lo de Free",
-                "Enlaces ilimitados (web, social, mail…)",
-                "Marca personal: logo, colores, fondo",
-                "Generador con IA: 4 imágenes + 4 textos al mes",
-                "Fondo de tarjeta personalizado",
-              ]}
-            />
-
-            <PlanCard
-              title="Empleado extra"
-              tagline="Si ya estás en una empresa con cuenta."
-              priceLabel={ars(PRICES_ARS_CENTS.empleadoExtra)}
-              priceUnit="por mes"
-              annualHint={`o ${ars(extraAnnual)}/año (-${discountPct}% con transferencia)`}
-              cta={{ href: "/signup/personal", label: "Sumar tarjeta personal" }}
-              features={[
-                "Tu tarjeta personal aparte de la empresa",
-                "Enlaces ilimitados",
-                "Marca personal y fondo a medida",
-                "IA: 4 imágenes + 4 textos al mes",
-                "Tarifa preferencial al estar activo en una empresa",
-              ]}
-            />
-
-            <PlanCard
-              title="Empresa"
-              tagline="Para equipos y franquicias."
-              priceLabel={ars(PRICES_ARS_CENTS.empresaPerSeat)}
-              priceUnit="por asiento / mes"
-              annualHint={`o ${ars(empresaAnnual)}/asiento al año (-${discountPct}%)`}
-              cta={{ href: "/register", label: "Crear empresa" }}
-              features={[
-                "Tarjetas para todos los empleados",
-                "Marca compartida (logo, colores, fondo)",
-                "IA marca: 6 imágenes + 6 textos / mes",
-                "IA por empleado: 6 imágenes + 6 textos / mes",
-                "URLs por empresa y por empleado",
-                "Trial de 14 días sin tarjeta",
-              ]}
-            />
-          </section>
-
-          <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <FaqItem
-              question="¿Qué pasa si me vence el plan?"
-              answer="Si sos particular, perdés la IA y los enlaces se podan a un único WhatsApp. Si sos empresa, las tarjetas que sobrepasen los asientos pagados quedan desactivadas hasta que renoves o reduzcas equipo."
-            />
-            <FaqItem
-              question="¿Cómo se paga?"
-              answer="Por Mercado Pago: con tarjeta (recurrente automático) o por transferencia (anual con 10% off)."
-            />
-            <FaqItem
-              question="¿Hay prueba gratis?"
-              answer="Las empresas tienen 14 días de prueba al crear la cuenta. Los particulares pueden quedarse en Free o subir a Pro cuando quieran."
-            />
-            <FaqItem
-              question="¿La IA tiene límite?"
-              answer="Cada generación de imagen (foto, fondo o logo) y cada texto cuentan como 1 unidad. El cupo se reinicia el día 1° de cada mes."
-            />
-            <FaqItem
-              question="¿Puedo bajarme cuando quiera?"
-              answer="Sí, podés cancelar el plan desde el panel y se mantiene activo hasta el fin del período pagado."
-            />
-            <FaqItem
-              question="¿La URL pública qué forma tiene?"
-              answer="Particulares: tarjetas.app/tu-nombre. Empresas: tarjetas.app/empresa/empleado. Si tu nombre está ocupado, sugerimos un sufijo numérico."
-            />
-          </section>
-
-          <section className="rounded-2xl bg-accent/5 p-8 text-center">
-            <h2 className="text-2xl font-semibold text-heading">¿Tenés equipo grande o dudas?</h2>
-            <p className="mt-2 text-muted">Hablanos y armamos un plan a medida.</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
-              <Link href="/signup/personal" className="app-btn app-btn-primary">
-                Crear mi tarjeta gratis
-              </Link>
-              <Link href="/register" className="app-btn app-btn-secondary">
-                Crear empresa
-              </Link>
-            </div>
-          </section>
+        {/* Toggle ciclo */}
+        <div className="mb-[34px] flex justify-center">
+          <div className="flex gap-1 rounded-full bg-bone p-1">
+            {(['mensual', 'anual'] as const).map(c => (
+              <button
+                key={c}
+                onClick={() => setCycle(c)}
+                className={`rounded-full px-5 py-[9px] text-[13px] transition-colors ${
+                  cycle === c ? 'bg-navy text-white' : 'text-muted hover:text-navy'
+                }`}
+              >
+                {c === 'mensual' ? 'Mensual' : 'Anual · 10% off'}
+              </button>
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
-  );
-}
 
-function PlanCard(props: {
-  title: string;
-  tagline: string;
-  priceLabel: string;
-  priceUnit: string;
-  annualHint?: string;
-  cta: { href: string; label: string };
-  features: string[];
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`flex flex-col gap-5 rounded-2xl border p-6 ${
-        props.highlight
-          ? "border-accent bg-accent/5 shadow-[0_12px_32px_rgba(63,103,196,0.12)]"
-          : "border-black/[0.08] bg-white"
-      }`}
-    >
-      <div>
-        <h3 className="text-lg font-semibold text-heading">{props.title}</h3>
-        <p className="mt-1 text-sm text-muted">{props.tagline}</p>
-      </div>
-      <div>
-        <p className="text-3xl font-bold text-heading">{props.priceLabel}</p>
-        <p className="text-sm text-muted">{props.priceUnit}</p>
-        {props.annualHint ? (
-          <p className="mt-1 text-xs text-accent">{props.annualHint}</p>
-        ) : null}
-      </div>
-      <ul className="flex flex-col gap-2 text-sm text-heading">
-        {props.features.map((f) => (
-          <li key={f} className="flex items-start gap-2">
-            <span aria-hidden className="mt-1 h-1.5 w-1.5 rounded-full bg-accent" />
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-      <Link
-        href={props.cta.href}
-        className={`app-btn w-full text-center ${
-          props.highlight ? "app-btn-primary" : "app-btn-secondary"
-        }`}
-      >
-        {props.cta.label}
-      </Link>
-    </div>
-  );
-}
+        {/* Cards de planes */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {PLANS.map(p => {
+            const featured = p.key === 'pro';
+            return (
+              <article
+                key={p.key}
+                className={`flex flex-col gap-[18px] rounded-[20px] border p-7 ${
+                  featured
+                    ? 'border-navy bg-navy text-white'
+                    : 'border-navy/[0.12] bg-white text-navy'
+                }`}
+              >
+                <div className="flex flex-col gap-[11px]">
+                  <div className="flex items-center gap-[9px]">
+                    <span className="text-[11px] uppercase tracking-[0.18em] opacity-60">
+                      {p.name}
+                    </span>
+                    {p.tag && (
+                      <span className="rounded-full bg-gold px-2.5 py-1 text-[9.5px] uppercase tracking-[0.12em] text-white">
+                        {p.tag}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-[7px]">
+                    <span className="font-serif text-[44px] leading-none">{p.price[cycle]}</span>
+                    {p.unit && <span className="text-[13px] opacity-60">{p.unit}</span>}
+                  </div>
+                  <p className="text-[13.5px] leading-[1.6] opacity-70">{p.desc}</p>
+                </div>
 
-function FaqItem({ question, answer }: { question: string; answer: string }) {
-  return (
-    <article className="rounded-2xl border border-black/[0.06] bg-white p-5">
-      <h3 className="text-sm font-semibold text-heading">{question}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{answer}</p>
-    </article>
+                <Link
+                  href={p.href}
+                  className={`grid h-12 place-items-center rounded-xl border text-[14.5px] font-medium transition-opacity hover:opacity-85 ${
+                    featured
+                      ? 'border-white bg-white text-navy'
+                      : 'border-navy bg-navy text-white'
+                  }`}
+                >
+                  {p.cta}
+                </Link>
+
+                <div className={`h-px ${featured ? 'bg-white/[0.16]' : 'bg-navy/10'}`} />
+
+                <ul className="flex flex-col gap-2.5">
+                  {p.items.map(i => (
+                    <li key={i} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5]">
+                      <span className="flex-none opacity-50">·</span>
+                      <span className="opacity-85">{i}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
+
+        {/* Asiento extra */}
+        <div className="mt-5 flex flex-col items-start gap-3 rounded-2xl bg-bone px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <div className="flex flex-col gap-[5px]">
+            <h2 className="text-[14.5px] font-medium">Asiento individual para un empleado más</h2>
+            <p className="text-[13px] text-muted">
+              Sumá una persona al plan Empresa sin cambiar de plan · $1.099/mes
+            </p>
+          </div>
+          <p className="flex-none text-[13px] text-muted">
+            Pagos con Mercado Pago · 10% off anual por transferencia
+          </p>
+        </div>
+
+        {/* FAQ */}
+        <section className="mx-auto mt-14 max-w-[760px]">
+          <h2 className="mb-5 text-[10.5px] uppercase tracking-[0.2em] text-label">
+            Preguntas frecuentes
+          </h2>
+          <dl className="flex flex-col">
+            {FAQ.map(f => (
+              <div
+                key={f.q}
+                className="flex flex-col gap-2 border-b border-navy/[0.08] py-[18px]"
+              >
+                <dt className="text-[15px]">{f.q}</dt>
+                <dd className="text-[13.5px] leading-[1.65] text-muted text-pretty">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+
+      {/* FOOTER */}
+      <footer className="flex items-center justify-between border-t border-navy/[0.08] px-6 pb-[34px] pt-[26px] lg:px-12">
+        <span className="font-serif text-[18px] tracking-[0.08em] text-navy/60">LUBELA</span>
+        <div className="flex gap-[22px] text-[12.5px] text-label">
+          <Link href="/terminos" className="hover:text-navy transition-colors">Términos</Link>
+          <Link href="/privacidad" className="hover:text-navy transition-colors">Privacidad</Link>
+        </div>
+      </footer>
+    </main>
   );
 }

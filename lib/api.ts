@@ -236,6 +236,36 @@ export async function generateAiBio(prompt: string): Promise<{ text: string }> {
   return data as { text: string };
 }
 
+/**
+ * POST /api/v1/ai/generate-card  (multipart/form-data)
+ * Genera nombre, puesto y bio usando IA. Solo disponible en plan Pro/Empresa.
+ * Requiere orgSlug de la organización (disponible solo después del registro).
+ */
+export type AiCardResult = {
+  displayName?: string;
+  title?: string;
+  bio?: string;
+};
+
+export async function generateAiCard(orgSlug: string, prompt: string): Promise<AiCardResult> {
+  const form = new FormData();
+  form.append("orgSlug", orgSlug);
+  form.append("wantText", "true");
+  form.append("wantPhoto", "false");
+  form.append("wantBackground", "false");
+  form.append("prompt", prompt);
+  const res = await fetch(`${API_BASE}/api/v1/ai/generate-card`, {
+    method: "POST",
+    headers: await authHeaders(), // No Content-Type — FormData lo setea con boundary
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al generar tarjeta con IA");
+  // El endpoint devuelve { text: CardTextResult, warnings: [] }
+  const text = data.text ?? {};
+  return { displayName: text.displayName, title: text.title, bio: text.bio } as AiCardResult;
+}
+
 // ─── Analíticas ───────────────────────────────────────────────────────────────
 
 export type ProfileStats = {
@@ -243,6 +273,38 @@ export type ProfileStats = {
   monthViews: number;
   totalViews: number;
 };
+
+// ─── Leads (contactos recibidos) ─────────────────────────────────────────────
+
+export type SubmitLeadPayload = {
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  note?: string;
+  wantsCard?: boolean;
+};
+
+/**
+ * POST /api/v1/profile/:profileId/leads
+ * Registra a alguien que escaneó la tarjeta y quiere que el dueño lo contacte.
+ * No requiere autenticación (es una ruta pública).
+ */
+export async function submitLead(
+  profileId: string,
+  payload: SubmitLeadPayload,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/profile/${profileId}/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Error al enviar los datos");
+  return data as { ok: boolean };
+}
+
+// ─── Analíticas ───────────────────────────────────────────────────────────────
 
 /**
  * GET /api/v1/profile/:profileId/stats

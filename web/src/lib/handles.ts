@@ -31,6 +31,10 @@ export const RESERVED_HANDLES = new Set<string>([
   "team",
   "cards",
   "openapi.yaml",
+  "crear",
+  "enviado",
+  "entrar",
+  "magic-link-sent",
 ]);
 
 /** Devuelve `null` si es válido o un mensaje de error en español. */

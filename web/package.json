@@ -32,6 +32,7 @@
     "react": "19.2.4",
     "react-device-mockup": "^1.0.0",
     "react-dom": "19.2.4",
+    "react-qr-code": "^2.2.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

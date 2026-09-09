@@ -107,6 +107,34 @@ model Organization {
   deactivatedBehavior DeactivatedProfileBehavior @default(gone)
 
   /**
+   * Comportamiento cuando una tarjeta está desactivada: "404" | "msg".
+   */
+  disabledCardBehavior String?  @default("404")
+  /**
+   * Mensaje a mostrar cuando disabledCardBehavior === "msg".
+   */
+  disabledCardMessage  String?
+
+  /**
+   * Layout de tarjeta por defecto para todos los perfiles de la org.
+   * Los perfiles pueden sobreescribirlo individualmente.
+   */
+  layout           String?
+  /**
+   * Par tipográfico por defecto de la org (clasico | moderno | mixto).
+   */
+  typePair         String?
+  /**
+   * Forma de la foto por defecto de la org (circulo | redondo | cuadrado).
+   */
+  photoShape       String?
+  /**
+   * Controles de diseño bloqueados a nivel org vs. editables por cada miembro.
+   * { plantilla: 'org'|'member', colores: 'org'|'member', tipografia: ..., foto: ..., fondo: ... }
+   */
+  designLocks      Json?
+
+  /**
    * Tipo de organización: empresa real (B2B) o pseudo-org de un particular.
    */
   kind             OrganizationKind @default(business)
@@ -126,6 +154,10 @@ model Organization {
    * Si está en período de prueba 14 días (sin pago todavía).
    */
   inTrial          Boolean          @default(false)
+  /**
+   * Fecha en que vence el trial gratuito. null = nunca tuvo trial.
+   */
+  trialEndsAt      DateTime?
   /**
    * Periodicidad del pago activo.
    */
@@ -163,8 +195,15 @@ model Membership {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
+  /**
+   * Tarjeta asignada a este miembro. null = sin tarjeta propia todavía.
+   * Sincronizado con Profile.ownerUserId en la action assignCard.
+   */
+  profileId      String?   @unique
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile      Profile?     @relation("AssignedMembership", fields: [profileId], references: [id])
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -185,17 +224,74 @@ model Profile {
    * Imagen de fondo de la tarjeta pública (URL o subida en /uploads/.../card-bg/).
    */
   cardBackgroundUrl String?
+  /**
+   * Color primario propio de la tarjeta (sobreescribe org.primaryColor si está seteado).
+   */
+  primaryColor      String?
+  /**
+   * Color secundario propio de la tarjeta (sobreescribe org.secondaryColor).
+   */
+  secondaryColor    String?
+  /**
+   * Layout de la tarjeta (sobreescribe org.layout si está seteado).
+   */
+  layout            String?
+  /**
+   * Par tipográfico de la tarjeta (sobreescribe org.typePair).
+   */
+  typePair          String?
+  /**
+   * Forma de la foto de la tarjeta (sobreescribe org.photoShape).
+   */
+  photoShape        String?
+  /**
+   * Modo de fondo del encabezado: ninguno | imagen | marca.
+   */
+  bgMode            String        @default("ninguno")
   status            ProfileStatus @default(active)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner        User?         @relation("ProfileOwner", fields: [ownerUserId], references: [id])
-  links        ProfileLink[]
-  views        CardView[]
+  organization       Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner              User?         @relation("ProfileOwner", fields: [ownerUserId], references: [id])
+  assignedMembership Membership?   @relation("AssignedMembership")
+  links              ProfileLink[]
+  views              CardView[]
+  leads              Lead[]
 
   @@unique([organizationId, cardSlug])
   @@index([ownerUserId])
+}
+
+/**
+ * Contacto capturado desde la tarjeta pública.
+ * El visitante llena el formulario en /[handle]/contacto.
+ */
+model Lead {
+  id          String    @id @default(cuid())
+  profileId   String
+  name        String
+  email       String?
+  phone       String?
+  company     String?
+  note        String?
+  /// El visitante pidió recibir la tarjeta del dueño por email.
+  wantsCard   Boolean   @default(false)
+  /// Cómo llegó el contacto: "QR", "Link compartido", "NFC", etc.
+  source      String?
+  /// Estado del seguimiento por parte del dueño.
+  status      LeadStatus @default(nuevo)
+  createdAt   DateTime  @default(now())
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+}
+
+enum LeadStatus {
+  nuevo
+  evento
+  contactado
 }
 
 model CardView {
@@ -218,6 +314,10 @@ model ProfileLink {
    */
   kind      ProfileLinkKind @default(other)
   sortOrder Int             @default(0)
+  /**
+   * Si el link está habilitado en la tarjeta pública.
+   */
+  enabled   Boolean         @default(true)
 
   profile Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
   clicks  LinkClick[]
@@ -288,6 +388,21 @@ model AiQuotaUsage {
 }
 
 /**
+ * Token de magic link (sin contraseña). Se hashea antes de guardar.
+ * Una vez usado (usedAt != null) o expirado, se descarta.
+ */
+model MagicToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+/**
  * Histórico de cobros para soporte y panel del usuario. Mercado Pago notifica vía webhook.
  */
 model BillingInvoice {
@@ -295,11 +410,11 @@ model BillingInvoice {
   organizationId String
   amountCents    Int
   currency       String        @default("ARS")
-  paymentMethod  PaymentMethod
+  paymentMethod  PaymentMethod?
   /**
    * Identificador externo (preapproval id, payment id, transferencia manual).
    */
-  externalRef    String?
+  externalRef    String?       @unique
   /**
    * Fecha del pago (cuando MP confirma). null mientras está pendiente.
    */
@@ -315,4 +430,15 @@ model BillingInvoice {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, paidAt])
+}
+
+/**
+ * Registro de idempotencia para eventos de webhooks externos (Mercado Pago, etc.).
+ * La clave es "{tipo}:{id_externo}" — si ya existe, el evento se descarta.
+ */
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  payload   String?  @db.Text
+  createdAt DateTime @default(now())
 }

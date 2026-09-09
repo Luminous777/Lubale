@@ -1,27 +1,36 @@
-// Design tokens — minimal & clean direction, matched to the web app.
-// Violet brand accent for primary actions & interactive/selected states,
-// dark ink reserved for text & the QR, soft neutrals, hairline borders.
+// Design tokens — Lubela brand system
+//
+// Tipografía:
+//   Display / wordmark / nombres / números grandes → Cormorant Garamond (serif)
+//   Interfaz / botones / labels / datos / nav      → Jost (sans geométrica)
+//   Labels chicos: Jost uppercase + letter-spacing 0.16–0.20em
+//
+// Paleta:
+//   Marino   #13263F  — botones, íconos, nav, texto primario
+//   Blanco   #FFFFFF  — superficies (cards, inputs, sheets)
+//   Hueso    #F3F1EC  — fondo del canvas
+//   + neutrales con tinte frío-cálido según superficie
 
 export const colors = {
   // Surfaces
-  background: "#F6F6FB", // app canvas
-  surface: "#FFFFFF", // cards, inputs
-  surfaceMuted: "#F1F0F8", // subtle fills
+  background: "#F3F1EC", // hueso — canvas de la app
+  surface: "#FFFFFF",    // tarjetas, inputs, sheets
+  surfaceMuted: "#EAE7E0", // fills suaves sobre hueso
 
   // Text
-  ink: "#1B1A2E", // primary text & the QR (kept dark for contrast)
-  muted: "#7B7B90", // secondary text
-  faint: "#A0A0B4", // tertiary text, placeholders
+  ink: "#13263F",         // texto primario (marino)
+  muted: "#647289",       // texto secundario — gris con tinte marino
+  faint: "#9AA5B8",       // placeholders y terciario
 
   // Lines
-  border: "#E7E6F0", // hairline borders
-  borderStrong: "#D6D4E4",
+  border: "#E0DDD6",      // borde cálido (combina con hueso)
+  borderStrong: "#C8C4BC",
 
-  // Brand accent (violet) — primary buttons & selected states
-  accent: "#6D5EF6",
-  accentSoft: "#EFEDFE",
+  // Brand accent — marino
+  accent: "#13263F",
+  accentSoft: "#E8EBF2",  // tinte marino muy suave
 
-  // Pro (premium gold) — distinct from the violet brand accent
+  // Pro (gold premium)
   pro: "#B7791F",
   proSoft: "#FBF3E1",
   proBorder: "#F0DFB0",
@@ -32,7 +41,7 @@ export const colors = {
   dangerSoft: "#FEF2F2",
   dangerBorder: "#FCA5A5",
 
-  // On-color text
+  // On-color
   onInk: "#FFFFFF",
   onAccent: "#FFFFFF",
 } as const;
@@ -72,17 +81,17 @@ export const font = {
   bold: "700",
 } as const;
 
-// Subtle, single-direction elevation. Kept restrained for the minimal look.
+// Subtle, single-direction elevation.
 export const shadow = {
   card: {
-    shadowColor: "#14142B",
+    shadowColor: "#13263F",
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.07,
     shadowRadius: 18,
     elevation: 3,
   },
   soft: {
-    shadowColor: "#14142B",
+    shadowColor: "#13263F",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,

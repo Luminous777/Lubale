@@ -1,16 +1,32 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cormorant_Garamond, Jost } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const inter = Inter({
+const serif = Cormorant_Garamond({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-serif",
+});
+const sans = Jost({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: "Tarjetas B2B",
-  description: "Perfiles digitales con QR para equipos y empresas",
+  title: {
+    default: "Lubela — Tarjetas digitales para empresas",
+    template: "%s · Lubela",
+  },
+  description:
+    "Tarjetas digitales con QR para equipos y empresas. Cada persona con su link, vos controlás la marca desde un panel.",
+  metadataBase: new URL("https://lubela.app"),
+  openGraph: {
+    siteName: "Lubela",
+    type: "website",
+    locale: "es_AR",
+  },
 };
 
 export default function RootLayout({
@@ -19,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full bg-page font-sans text-body">
+    <html lang="es" className={`${serif.variable} ${sans.variable}`}>
+      <body className="font-sans text-navy antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

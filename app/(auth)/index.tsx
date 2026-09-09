@@ -1,346 +1,114 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  Dimensions,
-} from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, StatusBar } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Feather } from "@expo/vector-icons";
-import { colors, radius, spacing, font, shadow } from "@/lib/theme";
+import { useFonts, CormorantGaramond_400Regular } from "@expo-google-fonts/cormorant-garamond";
+import { Jost_400Regular, Jost_500Medium } from "@expo-google-fonts/jost";
 
-const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - spacing["2xl"] * 2;
+const NAVY = "#13263F";
+const ICON  = require("../../icono-blanco-1024.png");
 
-// ---------- Mini card preview ----------
-function CardPreviewExample() {
+export default function LandingScreen() {
+  const [loaded] = useFonts({
+    CormorantGaramond_400Regular,
+    Jost_400Regular,
+    Jost_500Medium,
+  });
+
+  // Splash while fonts load
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: NAVY }} />;
+
   return (
-    <View style={styles.cardWrap}>
-      {/* Main card */}
-      <View style={styles.card}>
-        {/* Pro badge */}
-        <View style={styles.proBadge}>
-          <Feather name="zap" size={10} color={colors.accent} />
-          <Text style={styles.proBadgeText}>Pro</Text>
-        </View>
+    <SafeAreaView style={s.root} edges={["top", "bottom"]}>
+      <StatusBar barStyle="light-content" backgroundColor={NAVY} />
 
-        {/* Avatar + name */}
-        <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JP</Text>
-          </View>
-          <View>
-            <Text style={styles.cardName}>Juan Pérez</Text>
-            <Text style={styles.cardTitle}>Diseñador UX · Estudio Design</Text>
-          </View>
-        </View>
-
-        {/* Contact chips */}
-        <View style={styles.chipsRow}>
-          {["WhatsApp", "LinkedIn", "Portfolio"].map((label) => (
-            <View key={label} style={styles.chip}>
-              <Text style={styles.chipText}>{label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* QR strip */}
-        <View style={styles.qrStrip}>
-          <View>
-            <Text style={styles.qrLabel}>Compartí tu tarjeta</Text>
-            <Text style={styles.qrUrl}>lubale.app/jp</Text>
-          </View>
-          {/* Minimal QR placeholder */}
-          <View style={styles.qrBox}>
-            <View style={styles.qrInner} />
-          </View>
-        </View>
+      {/* Hero */}
+      <View style={s.hero}>
+        <Image source={ICON} style={s.icon} resizeMode="contain" />
+        <Text style={s.wordmark}>LUBELA</Text>
+        <Text style={s.tagline}>
+          Tu tarjeta de presentación, siempre a un escaneo de distancia.
+        </Text>
       </View>
 
-      {/* Shadow card behind */}
-      <View style={styles.cardShadowBehind} />
-    </View>
-  );
-}
+      {/* Actions */}
+      <View style={s.actions}>
+        <Pressable
+          style={({ pressed }) => [s.btn, s.btnPrimary, pressed && s.pressed]}
+          onPress={() => router.push("/(auth)/register")}
+        >
+          <Text style={s.btnPrimaryLabel}>Crear mi tarjeta</Text>
+        </Pressable>
 
-// ---------- Screen ----------
-export default function LandingScreen() {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-
-      <View style={styles.container}>
-        {/* Decorative blob */}
-        <View style={styles.blob} />
-
-        {/* Logo + name */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoIcon}>
-            <Feather name="credit-card" size={34} color="#FFFFFF" />
-          </View>
-          <View style={styles.logoTextWrap}>
-            <Text style={styles.logoName}>Lubale</Text>
-            <Text style={styles.logoTagline}>Tu tarjeta digital, siempre a mano</Text>
-          </View>
-        </View>
-
-        {/* Card example */}
-        <CardPreviewExample />
-
-        {/* CTAs */}
-        <View style={styles.ctaSection}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.85}
-            onPress={() => router.push("/(auth)/register")}
-          >
-            <Text style={styles.primaryBtnText}>Crear mi tarjeta gratis</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.ghostBtn}
-            activeOpacity={0.7}
-            onPress={() => router.push("/(auth)/login")}
-          >
-            <Text style={styles.ghostBtnText}>
-              ¿Ya tenés cuenta?{" "}
-              <Text style={styles.ghostBtnLink}>Iniciá sesión</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Pressable
+          style={({ pressed }) => [s.btn, s.btnGhost, pressed && s.pressed]}
+          onPress={() => router.push("/(auth)/login")}
+        >
+          <Text style={s.btnGhostLabel}>Ya tengo cuenta</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
+const s = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing["4xl"],
-    paddingBottom: spacing["3xl"],
-    overflow: "hidden",
+    backgroundColor: NAVY,
+    paddingHorizontal: 32,
+    paddingBottom: 24,
   },
 
-  // Blob
-  blob: {
-    position: "absolute",
-    top: -80,
-    width: 480,
-    height: 480,
-    borderRadius: 999,
-    backgroundColor: "#EFEDFE",
-    opacity: 0.6,
-    alignSelf: "center",
-  },
-
-  // Logo
-  logoSection: {
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 40,
-    zIndex: 1,
-  },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
+  // Hero centrado
+  hero: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    gap: 28,
   },
-  logoTextWrap: {
-    alignItems: "center",
-    gap: 4,
+  icon: {
+    width: 104,
+    height: 104,
+    borderRadius: 24,
   },
-  logoName: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: colors.ink,
-    letterSpacing: -0.5,
-  },
-  logoTagline: {
-    fontSize: 13,
-    color: colors.muted,
-    letterSpacing: 0.2,
-  },
-
-  // Card wrap
-  cardWrap: {
-    width: CARD_WIDTH,
-    marginBottom: 36,
-    zIndex: 1,
-  },
-  card: {
-    ...shadow.card,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 20,
-    position: "relative",
-  },
-  cardShadowBehind: {
-    backgroundColor: "#EFEDFE",
-    borderRadius: 16,
-    height: 26,
-    marginHorizontal: 20,
-    marginTop: -10,
-    opacity: 0.6,
-  },
-
-  // Pro badge
-  proBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EFEDFE",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  proBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.accent,
-  },
-
-  // Profile
-  profileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 999,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 17,
-    fontWeight: "700",
+  wordmark: {
+    fontFamily: "CormorantGaramond_400Regular",
+    fontSize: 44,
+    letterSpacing: 12,
     color: "#FFFFFF",
+    paddingLeft: 12, // compensa el letter-spacing del último caracter
   },
-  cardName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.ink,
-    marginBottom: 3,
-  },
-  cardTitle: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-
-  // Chips
-  chipsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
-    flexWrap: "wrap",
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.background,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  chipText: {
-    fontSize: 12,
-    color: colors.ink,
-    fontWeight: "500",
+  tagline: {
+    fontFamily: "Jost_400Regular",
+    fontSize: 15,
+    lineHeight: 24,
+    textAlign: "center",
+    maxWidth: 250,
+    color: "rgba(255,255,255,0.62)",
+    marginTop: -14,
   },
 
-  // QR strip
-  qrStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  qrLabel: {
-    fontSize: 11,
-    color: colors.muted,
-    marginBottom: 2,
-  },
-  qrUrl: {
-    fontSize: 12,
-    color: colors.accent,
-    fontWeight: "600",
-  },
-  qrBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 6,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  qrInner: {
-    width: 22,
-    height: 22,
-    borderRadius: 3,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-  },
-
-  // CTAs
-  ctaSection: {
-    width: "100%",
-    gap: 6,
-    zIndex: 1,
-  },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.lg,
+  // Botones
+  actions: { gap: 12 },
+  btn: {
     height: 54,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
-  primaryBtnText: {
+  btnPrimary: { backgroundColor: "#FFFFFF" },
+  btnPrimaryLabel: {
+    fontFamily: "Jost_500Medium",
     fontSize: 16,
-    fontWeight: "700",
+    color: NAVY,
+  },
+  btnGhost: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
+  },
+  btnGhostLabel: {
+    fontFamily: "Jost_400Regular",
+    fontSize: 16,
     color: "#FFFFFF",
   },
-  ghostBtn: {
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ghostBtnText: {
-    fontSize: 14,
-    color: colors.muted,
-  },
-  ghostBtnLink: {
-    color: colors.accent,
-    fontWeight: "600",
-  },
+  pressed: { opacity: 0.75 },
 });

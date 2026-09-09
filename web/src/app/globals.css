@@ -1,85 +1,53 @@
 @import "tailwindcss";
 
-/*
- * Violeta (#6d5ef6): mismo valor en :root (clases .app-*) y en @theme (utilidades Tailwind
- * text-accent, bg-accent-soft, border-l-accent). Evita que var(--accent) no se resuelva en build.
- */
-:root {
-  --page: #f6f6fb;
-  --surface: #ffffff;
-  --heading: #1b1a2e;
-  --body: #45455c;
-  --muted: #7b7b90;
-  --accent: #6d5ef6;
-  --accent-hover: #5a49e8;
-  --accent-soft: rgba(109, 94, 246, 0.12);
-  --card-border: rgba(20, 20, 40, 0.07);
-  --ring-focus: rgba(109, 94, 246, 0.26);
-  --shadow-card: 0 1px 2px rgba(20, 20, 43, 0.04), 0 10px 30px rgba(20, 20, 43, 0.05);
-  --radius-card: 16px;
+/* ── Tokens de marca ─────────────────────────────────────────── */
+@theme {
+  --color-navy:      #13263F;
+  --color-navy-deep: #0E1B2E;
+  --color-navy-soft: #3C5A80;
+  --color-muted:     #6B7787;
+  --color-label:     #8A94A2;
+  --color-bone:      #F3F1EC;
+  --color-green:     #2F7A5B;
+  --color-gold:      #A08A4B;
+
+  --font-sans:  var(--font-sans),  Helvetica, sans-serif;
+  --font-serif: var(--font-serif), Georgia,   serif;
 }
 
-@theme inline {
-  --color-page: var(--page);
-  --color-surface: var(--surface);
-  --color-heading: var(--heading);
-  --color-body: var(--body);
-  --color-muted: var(--muted);
-  --color-accent: #6d5ef6;
-  --color-accent-hover: #5a49e8;
-  --color-accent-soft: rgba(109, 94, 246, 0.12);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --radius-card: var(--radius-card);
-  --shadow-card: var(--shadow-card);
-}
-
+/* ── Base ────────────────────────────────────────────────────── */
 body {
-  background-color: var(--page);
-  color: var(--body);
+  background-color: #ffffff;
+  color: #13263F;
   font-family: var(--font-sans);
 }
 
-/* Tarjetas elevadas */
+/* ── Componentes compartidos ─────────────────────────────────── */
+
+/* Tarjeta elevada */
 .app-card {
-  background-color: var(--surface);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  background-color: #ffffff;
+  border: 1px solid rgba(19, 38, 63, 0.10);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(19, 38, 63, 0.04), 0 10px 30px rgba(19, 38, 63, 0.05);
 }
 
-/*
- * Badge de ícono estilo asistente: cuadrado redondeado, fondo tenue y contorno
- * suave. Envuelve un ícono de ~20px. Uso opcional en encabezados de sección.
- */
-.app-icon-badge {
-  display: inline-flex;
-  height: 2.75rem;
-  width: 2.75rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.85rem;
-  border: 1px solid var(--card-border);
-  background: color-mix(in srgb, var(--page) 60%, #ffffff);
-  color: var(--heading);
-}
-
+/* Input estándar */
 .app-input {
   height: 2.75rem;
   border-radius: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: var(--surface);
+  border: 1px solid rgba(19, 38, 63, 0.14);
+  background: #ffffff;
   padding: 0 0.75rem;
   font-size: 0.875rem;
+  color: #13263F;
   outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .app-input:focus {
-  border-color: color-mix(in srgb, var(--accent) 45%, #94a3b8);
-  box-shadow: 0 0 0 3px var(--ring-focus);
+  border-color: rgba(19, 38, 63, 0.40);
+  box-shadow: 0 0 0 3px rgba(19, 38, 63, 0.08);
 }
 
 textarea.app-input {
@@ -89,93 +57,61 @@ textarea.app-input {
   padding-bottom: 0.65rem;
 }
 
+/* Botón primario (navy) */
 .app-btn-primary {
   display: inline-flex;
   height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  background-color: var(--accent);
+  border-radius: 0.75rem;
+  background-color: #13263F;
   padding: 0 1.5rem;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 500;
+  color: #ffffff;
   border: none;
-  box-shadow: 0 1px 2px rgba(20, 20, 43, 0.12), 0 6px 16px rgba(109, 94, 246, 0.22);
-  transition:
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
 .app-btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-  box-shadow: 0 2px 4px rgba(20, 20, 43, 0.12), 0 10px 24px rgba(109, 94, 246, 0.32);
-  transform: translateY(-1px);
-}
-
-.app-btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(20, 20, 43, 0.16);
+  background-color: #0E1B2E;
 }
 
 .app-btn-primary:disabled {
   opacity: 0.55;
 }
 
+/* Botón secundario (contorno navy) */
 .app-btn-secondary {
   display: inline-flex;
   height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  background: var(--surface);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(19, 38, 63, 0.18);
+  background: #ffffff;
   padding: 0 1.5rem;
   font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--accent);
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
+  font-weight: 500;
+  color: #13263F;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .app-btn-secondary:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-hover);
+  background: #F3F1EC;
+  border-color: rgba(19, 38, 63, 0.30);
 }
 
-.app-btn-ghost {
-  display: inline-flex;
-  height: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  border: 1px solid var(--card-border);
-  background: var(--surface);
-  padding: 0 1rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--heading);
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.app-btn-ghost:hover {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--card-border));
-}
-
+/* Link estilo texto */
 .app-link {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--accent);
+  color: #13263F;
   text-underline-offset: 3px;
+  text-decoration: underline;
+  text-decoration-color: rgba(19, 38, 63, 0.30);
 }
 
 .app-link:hover {
-  color: var(--accent-hover);
+  text-decoration-color: #13263F;
 }

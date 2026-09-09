@@ -22,3 +22,11 @@ export async function getUserPlan(): Promise<"gratis" | "pro" | "empresa" | null
 export async function setUserPlan(plan: "gratis" | "pro" | "empresa") {
   await SecureStore.setItemAsync("user_plan", plan);
 }
+
+export async function clearAll() {
+  await Promise.all([
+    SecureStore.deleteItemAsync("access_token"),
+    SecureStore.deleteItemAsync("active_profile"),
+    SecureStore.deleteItemAsync("user_plan"),
+  ]);
+}
