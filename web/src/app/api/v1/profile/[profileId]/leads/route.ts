@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rateLimit";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -24,6 +25,10 @@ export async function POST(
   { params }: { params: Promise<{ profileId: string }> },
 ) {
   const { profileId } = await params;
+
+  // Endpoint público: limitar por IP + perfil para frenar spam/abuso.
+  const rl = await checkRateLimit(`lead:${getClientIp(req)}:${profileId}`, 5, 60 * 1000);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   // Verificar que el perfil existe y está activo
   const profile = await prisma.profile.findUnique({

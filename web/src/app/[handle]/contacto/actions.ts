@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { sendOwnerLeadEmail, sendCardToVisitor } from '@/lib/email';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 type Input = {
   profileId: string;
@@ -14,9 +15,6 @@ type Input = {
   wantsCard: boolean;
 };
 
-// Rate limit simple en memoria (no persiste entre instancias en producción)
-const seen = new Map<string, number>();
-
 export async function submitLead(input: Input): Promise<{ ok: boolean; error?: string }> {
   const name  = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -25,13 +23,12 @@ export async function submitLead(input: Input): Promise<{ ok: boolean; error?: s
     return { ok: false, error: 'Revisá el nombre y el email.' };
   }
 
-  const ip  = (await headers()).get('x-forwarded-for')?.split(',')[0] ?? 'anon';
-  const key = `${ip}:${input.profileId}`;
-  const last = seen.get(key) ?? 0;
-  if (Date.now() - last < 20_000) {
-    return { ok: false, error: 'Ya enviaste tus datos hace un momento.' };
+  // Límite respaldado por Redis (global entre instancias serverless).
+  const ip  = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
+  const rl = await checkRateLimit(`lead:${ip}:${input.profileId}`, 5, 60_000);
+  if (!rl.ok) {
+    return { ok: false, error: 'Enviaste demasiados mensajes. Esperá un momento e intentá de nuevo.' };
   }
-  seen.set(key, Date.now());
 
   // Profile con la org y sus admins para notificación
   const profile = await prisma.profile.findUnique({
