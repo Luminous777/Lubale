@@ -11,6 +11,9 @@ type Query = {
 
 export const metadata = { title: 'Datos enviados', robots: { index: false } };
 
+// Depende de searchParams + consulta a la base: se renderiza por request.
+export const dynamic = 'force-dynamic';
+
 export default async function SentPage({ searchParams }: { searchParams: Promise<Query> }) {
   const { de, name = '', email = '', company = '' } = await searchParams;
 

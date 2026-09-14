@@ -4,6 +4,8 @@ import { listUserOrganizations } from "@/lib/authz";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { OnboardingForm } from "./OnboardingForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function OnboardingPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");

@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return jsonError("No autenticado", 401);
 
-  const rl = checkRateLimit(`ai-branding:${session.user.id}`, 10, 60 * 1000);
+  const rl = await checkRateLimit(`ai-branding:${session.user.id}`, 10, 60 * 1000);
   if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   let json: unknown;

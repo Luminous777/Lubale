@@ -1,4 +1,5 @@
 // app/api/leads/export/route.ts — CSV
+import { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireMembership } from '@/lib/auth';
 
@@ -10,10 +11,14 @@ export async function GET(req: Request) {
 
   const { org, isAdmin, user } = await requireMembership(orgSlug);
 
+  // Solo aceptamos valores válidos del enum; cualquier otro se ignora.
+  const statusFilter =
+    estado !== 'todos' && estado in LeadStatus ? (estado as LeadStatus) : null;
+
   const leads = await prisma.lead.findMany({
     where: {
       profile: { organizationId: org.id, ...(isAdmin ? {} : { ownerUserId: user.id }) },
-      ...(estado !== 'todos' ? { status: estado } : {}),
+      ...(statusFilter ? { status: statusFilter } : {}),
       ...(q
         ? {
             OR: [

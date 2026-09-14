@@ -6,6 +6,9 @@ import { DEFAULT_ACCENT, DEFAULT_SECONDARY, sanitizeCssColor } from "@/lib/cssCo
 import { applyPlanGatesToPublicProfile, getPublicProfile } from "@/lib/publicProfile";
 import { absoluteUrl, publicCardPath } from "@/lib/urls";
 import { PublicProfileView } from "@/components/public/PublicProfileView";
+
+// Perfil público leído de la base por request.
+export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 
 type Props = { params: Promise<{ orgSlug: string; cardSlug: string }> };

@@ -3,6 +3,7 @@
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { sendMagicLink } from '@/lib/email';
+import { getBaseUrl } from '@/lib/baseUrl';
 
 export async function resendMagicLink(rawEmail: string): Promise<{ ok: true }> {
   const email = rawEmail.trim().toLowerCase();
@@ -32,6 +33,6 @@ export async function resendMagicLink(rawEmail: string): Promise<{ ok: true }> {
     },
   });
 
-  await sendMagicLink({ to: email, url: `https://lubela.app/entrar?token=${token}` });
+  await sendMagicLink({ to: email, url: `${getBaseUrl()}/entrar?token=${token}` });
   return { ok: true };
 }

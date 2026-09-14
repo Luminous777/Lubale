@@ -38,7 +38,7 @@ export async function POST(
 
   const parsed = LeadSchema.safeParse(body);
   if (!parsed.success) {
-    const message = parsed.error.errors[0]?.message ?? "Datos inválidos";
+    const message = parsed.error.issues[0]?.message ?? "Datos inválidos";
     return jsonError(message, 422);
   }
 

@@ -58,9 +58,12 @@ export async function createSession(userId: string): Promise<void> {
   const secret = process.env.AUTH_SECRET;
   if (!secret) throw new Error('AUTH_SECRET no está configurado');
 
+  // `salt` debe ser el nombre de la cookie: NextAuth usa ese mismo valor al
+  // decodificar la sesión, así que si no coincide el token no se puede leer.
   const token = await encode({
     token:  { userId },
     secret,
+    salt:   COOKIE_NAME,
     maxAge: SESSION_MAX_AGE,
   });
 

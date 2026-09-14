@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { RESERVED_HANDLES } from '@/lib/handles';
 import { sendMagicLink } from '@/lib/email';
+import { getBaseUrl } from '@/lib/baseUrl';
 
 export async function checkSlug(slug: string): Promise<boolean> {
   if (RESERVED_HANDLES.has(slug)) return false;
@@ -102,5 +103,5 @@ async function issueMagicLink(email: string) {
     },
   });
   // Universal link: si tiene la app abre autenticado; si no, cae en la web
-  await sendMagicLink({ to: email, url: `https://lubela.app/entrar?token=${token}` });
+  await sendMagicLink({ to: email, url: `${getBaseUrl()}/entrar?token=${token}` });
 }

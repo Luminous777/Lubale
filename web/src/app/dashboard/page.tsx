@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { listUserOrganizations } from "@/lib/authz";
 import { MarketingHeader } from "@/components/MarketingHeader";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardIndexPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login?callbackUrl=/dashboard");

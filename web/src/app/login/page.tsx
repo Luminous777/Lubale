@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { MarketingHeader } from "@/components/MarketingHeader";
 import { LoginForm } from "./LoginForm";
 
+// Lee searchParams (callbackUrl, reset) en el cliente: render por request.
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col">

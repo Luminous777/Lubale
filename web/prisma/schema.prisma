@@ -442,3 +442,19 @@ model WebhookEvent {
   payload   String?  @db.Text
   createdAt DateTime @default(now())
 }
+
+/**
+ * Token de un solo uso para restablecer la contraseña. Igual que MagicToken,
+ * se guarda solo el hash SHA-256 (el valor plano solo viaja en el enlace del
+ * email) y vence a los 30 minutos. `usedAt` evita la reutilización.
+ */
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}

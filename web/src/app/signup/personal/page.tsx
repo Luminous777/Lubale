@@ -4,6 +4,8 @@ import { MarketingHeader } from "@/components/MarketingHeader";
 import { listUserOrganizations } from "@/lib/authz";
 import { PersonalSignupForm } from "./PersonalSignupForm";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Crear tarjeta personal",
 };

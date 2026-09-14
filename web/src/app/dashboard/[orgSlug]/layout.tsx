@@ -4,6 +4,9 @@ import { auth } from "@/auth";
 import { getMembershipForUser } from "@/lib/authz";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 
+// Toda la sección del panel es por usuario/sesión: se renderiza por request.
+export const dynamic = "force-dynamic";
+
 export default async function OrgDashboardLayout({
   children,
   params,

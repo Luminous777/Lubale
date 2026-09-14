@@ -4,6 +4,8 @@ import Link from 'next/link';
 
 export const metadata = { title: 'Revisá tu email', robots: { index: false } };
 
+export const dynamic = 'force-dynamic';
+
 export default async function MagicLinkSentPage({
   searchParams,
 }: {

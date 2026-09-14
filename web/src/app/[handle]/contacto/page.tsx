@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { RESERVED_HANDLES } from '@/lib/handles';
 import LeadForm from './LeadForm';
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   if (RESERVED_HANDLES.has(handle)) return {};

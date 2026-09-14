@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { submitLead } from './actions';
 
 const FIELDS = [
-  { name: 'name',    label: 'Nombre y apellido', placeholder: 'Mariano Gómez',                  autoComplete: 'name',         required: true },
-  { name: 'email',   label: 'Email',              placeholder: 'mariano@constructoradelta.com', type: 'email', autoComplete: 'email' },
-  { name: 'phone',   label: 'Teléfono',           placeholder: '+54 9 11 …',                   type: 'tel',   autoComplete: 'tel' },
-  { name: 'company', label: 'Empresa',            placeholder: 'Constructora Delta',            autoComplete: 'organization' },
+  { name: 'name',    label: 'Nombre y apellido', placeholder: 'Mariano Gómez',                  type: 'text',  autoComplete: 'name',         required: true },
+  { name: 'email',   label: 'Email',              placeholder: 'mariano@constructoradelta.com', type: 'email', autoComplete: 'email', required: false },
+  { name: 'phone',   label: 'Teléfono',           placeholder: '+54 9 11 …',                   type: 'tel',   autoComplete: 'tel', required: false },
+  { name: 'company', label: 'Empresa',            placeholder: 'Constructora Delta',            type: 'text',  autoComplete: 'organization', required: false },
 ] as const;
 
 export default function LeadForm({

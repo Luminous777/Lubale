@@ -7,6 +7,9 @@ import { prisma } from '@/lib/prisma';
 import { RESERVED_HANDLES } from '@/lib/handles';
 import CardQr from './CardQr';
 
+// Tarjeta pública leída de la base por request (puede cambiar en cualquier momento).
+export const dynamic = 'force-dynamic';
+
 const MARKS: Record<string, string> = {
   whatsapp: '◈',
   email:    '✉',

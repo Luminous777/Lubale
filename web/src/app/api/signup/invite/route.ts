@@ -41,7 +41,7 @@ async function pickAvailableCardSlug(orgId: string, base: string): Promise<strin
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(`signup-invite:${ip}`, 10, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`signup-invite:${ip}`, 10, 60 * 60 * 1000);
   if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   const json = await req.json().catch(() => null);

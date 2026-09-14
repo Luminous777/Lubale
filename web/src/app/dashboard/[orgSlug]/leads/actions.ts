@@ -1,10 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { LeadStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireMembership } from '@/lib/auth';
-
-const VALID = ['nuevo', 'evento', 'contactado'];
 
 export async function setLeadStatus({
   orgSlug,
@@ -15,7 +14,8 @@ export async function setLeadStatus({
   leadId: string;
   status: string;
 }) {
-  if (!VALID.includes(status)) throw new Error('Estado inválido.');
+  if (!(status in LeadStatus)) throw new Error('Estado inválido.');
+  const nextStatus = status as LeadStatus;
 
   const { org, isAdmin, user } = await requireMembership(orgSlug);
 
@@ -28,6 +28,6 @@ export async function setLeadStatus({
   });
   if (!lead) throw new Error('Contacto no encontrado.');
 
-  await prisma.lead.update({ where: { id: leadId }, data: { status } });
+  await prisma.lead.update({ where: { id: leadId }, data: { status: nextStatus } });
   revalidatePath(`/dashboard/${orgSlug}/leads`);
 }

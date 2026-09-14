@@ -12,7 +12,7 @@ const bodySchema = z.object({
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  const rl = await checkRateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
   if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   const json = await req.json().catch(() => null);

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const user = await getBearerUser(req);
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const rl = checkRateLimit(`ai-card-mobile:${user.id}`, 10, 60 * 1000);
+  const rl = await checkRateLimit(`ai-card-mobile:${user.id}`, 10, 60 * 1000);
   if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   const body = await req.json().catch(() => null);

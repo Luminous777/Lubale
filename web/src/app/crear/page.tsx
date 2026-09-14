@@ -3,6 +3,10 @@ import ClaimForm from './ClaimForm';
 
 export const metadata = { title: 'Crear mi tarjeta', robots: { index: false } };
 
+// Depende de searchParams del formulario anterior: se renderiza por request,
+// no en build. Evita el prerender estático de un formulario interactivo.
+export const dynamic = 'force-dynamic';
+
 type Query = {
   name?:    string;
   email?:   string;
