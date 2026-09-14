@@ -9,6 +9,8 @@
  *   MP_WEBHOOK_SECRET — Secret para verificar firma de webhooks
  */
 
+import { createHmac, timingSafeEqual } from 'crypto';
+
 const BASE = 'https://api.mercadopago.com';
 
 function headers() {
@@ -51,25 +53,75 @@ export interface MpPreference {
 // Verificación de firma de webhook
 // ──────────────────────────────────────────────────────────────────────────────
 
+/** Tolerancia de antigüedad del timestamp de la firma (5 minutos). */
+const SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000;
+
 /**
  * Verifica la firma HMAC-SHA256 que Mercado Pago incluye en el header
- * `x-signature` de sus notificaciones.
- *
- * TODO: implementar según:
+ * `x-signature` de sus notificaciones, según:
  * https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
+ *
+ * El manifest se arma como `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
+ * usando `data.id` de los query params de la URL (en minúsculas si viene en
+ * mayúsculas) y `x-request-id` del header. Las partes ausentes se omiten.
  */
-export function verifyMpSignature(headers: Headers, rawBody: string): boolean {
+export function verifyMpSignature(req: Request): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET;
   if (!secret) {
-    // En desarrollo sin secret configurado, aceptamos todo
-    if (process.env.NODE_ENV === 'development') return true;
-    return false;
+    // Sin secret configurado sólo aceptamos en desarrollo local.
+    return process.env.NODE_ENV === 'development';
   }
 
-  // TODO: extraer ts y v1 del header x-signature, construir el manifest string
-  // "id:<data.id>;request-id:<x-request-id>;ts:<ts>;" y comparar con HMAC-SHA256.
-  // Por ahora stub que acepta todo en dev:
-  return process.env.NODE_ENV === 'development';
+  const xSignature = req.headers.get('x-signature');
+  const xRequestId = req.headers.get('x-request-id');
+  if (!xSignature) return false;
+
+  // El header viene como "ts=<millis>,v1=<hmac-hex>".
+  let ts: string | undefined;
+  let v1: string | undefined;
+  for (const part of xSignature.split(',')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (key === 'ts') ts = value;
+    else if (key === 'v1') v1 = value;
+  }
+  if (!ts || !v1) return false;
+
+  // `data.id` proviene del query param de la URL de notificación.
+  let dataId: string | null = null;
+  try {
+    const params = new URL(req.url).searchParams;
+    dataId = params.get('data.id') ?? params.get('id');
+  } catch {
+    dataId = null;
+  }
+  if (dataId && /[A-Z]/.test(dataId)) dataId = dataId.toLowerCase();
+
+  // Se omiten las partes ausentes del manifest (no se dejan vacías).
+  let manifest = '';
+  if (dataId) manifest += `id:${dataId};`;
+  if (xRequestId) manifest += `request-id:${xRequestId};`;
+  manifest += `ts:${ts};`;
+
+  const expected = createHmac('sha256', secret).update(manifest).digest('hex');
+
+  // Comparación en tiempo constante para no filtrar información por timing.
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const providedBuf = Buffer.from(v1, 'hex');
+  if (expectedBuf.length !== providedBuf.length) return false;
+  if (!timingSafeEqual(expectedBuf, providedBuf)) return false;
+
+  // Rechaza notificaciones viejas para mitigar replays. El ts puede venir en
+  // segundos o milisegundos según la integración; normalizamos a milisegundos.
+  let tsMs = Number(ts);
+  if (Number.isFinite(tsMs)) {
+    if (tsMs < 1e12) tsMs *= 1000;
+    if (Math.abs(Date.now() - tsMs) > SIGNATURE_MAX_AGE_MS) return false;
+  }
+
+  return true;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

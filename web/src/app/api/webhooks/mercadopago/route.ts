@@ -9,7 +9,7 @@ import {
 export async function POST(req: Request) {
   const raw = await req.text();
 
-  if (!verifyMpSignature(req.headers, raw)) {
+  if (!verifyMpSignature(req)) {
     return new Response('Invalid signature', { status: 401 });
   }
 
