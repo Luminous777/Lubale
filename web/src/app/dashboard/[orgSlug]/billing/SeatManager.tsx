@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { changeSeats } from './actions';
+import { changeSeatsAction } from '@/server/billing';
 
 export default function SeatManager({
   orgSlug,
@@ -57,7 +57,7 @@ export default function SeatManager({
               {`$${(Math.abs(delta) * unitPrice).toLocaleString('es-AR')}`}/mes
             </span>
             <button
-              onClick={() => start(() => changeSeats({ orgSlug, seats: next }))}
+              onClick={() => start(() => changeSeatsAction({ orgSlug, seats: next }))}
               disabled={pending}
               className="rounded-[11px] bg-navy px-[18px] py-3 text-[13.5px] text-white disabled:opacity-50"
             >

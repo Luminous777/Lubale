@@ -5,6 +5,7 @@
  * "manual": el admin paga por transferencia y un humano marca como `active` desde la admin.
  */
 
+import { createHmac, timingSafeEqual } from "crypto";
 import {
   BillingCycle,
   BillingPlan,
@@ -216,12 +217,13 @@ export async function createMpSubscription(input: {
     const amountARS = input.amountCents / 100;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const externalRef = `mp_${input.orgId}_${Date.now()}`;
 
     const result = await preApproval.create({
       body: {
         reason: input.description,
-        external_reference: externalRef,
+        // Usamos el id de la org como external_reference para que el webhook
+        // pueda ubicar la organización aunque cambie el id de la suscripción.
+        external_reference: input.orgId,
         payer_email: input.payerEmail,
         auto_recurring: {
           frequency,
@@ -238,6 +240,9 @@ export async function createMpSubscription(input: {
       return { ok: false, error: "MercadoPago no devolvió URL de pago." };
     }
 
+    // Guardamos el id real de la suscripción (preapproval) para poder
+    // actualizarla o cancelarla luego y para el matching del webhook.
+    const externalRef = result.id ?? `mp_${input.orgId}_${Date.now()}`;
     return { ok: true, checkoutUrl: result.init_point, externalRef };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : "Error de MercadoPago" };
@@ -245,62 +250,184 @@ export async function createMpSubscription(input: {
 }
 
 /**
- * Crea una preferencia de pago único (para planes anuales con tarjeta).
+ * Actualiza el monto de una suscripción recurrente existente (por ejemplo, al
+ * cambiar la cantidad de asientos de una empresa). No hace nada si no hay token
+ * o si el id no corresponde a una suscripción real de MercadoPago (modo manual).
  */
-export async function createMpPreference(input: {
-  orgId: string;
+export async function updateMpSubscriptionAmount(input: {
+  subscriptionId: string;
   amountCents: number;
-  description: string;
-  payerEmail: string;
-  successPath: string;
-  failurePath: string;
-}): Promise<{ ok: true; checkoutUrl: string; externalRef: string } | { ok: false; error: string }> {
+}): Promise<void> {
   const token = process.env.MP_ACCESS_TOKEN;
+  if (!token || !isRealMpId(input.subscriptionId)) return;
 
-  if (!token) {
-    const externalRef = `manual_${input.orgId}_${Date.now()}`;
-    return {
-      ok: true,
-      checkoutUrl: `${input.successPath}?status=pending&ref=${externalRef}`,
-      externalRef,
-    };
-  }
+  const { MercadoPagoConfig, PreApproval } = await import("mercadopago");
+  const client = new MercadoPagoConfig({ accessToken: token });
+  const preApproval = new PreApproval(client);
 
-  try {
-    const { Preference, MercadoPagoConfig } = await import("mercadopago");
-    const client = new MercadoPagoConfig({ accessToken: token });
-    const preference = new Preference(client);
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const externalRef = `mp_once_${input.orgId}_${Date.now()}`;
-
-    const result = await preference.create({
-      body: {
-        items: [{
-          id: externalRef,
-          title: input.description,
-          quantity: 1,
-          unit_price: input.amountCents / 100,
-          currency_id: "ARS",
-        }],
-        payer: { email: input.payerEmail },
-        external_reference: externalRef,
-        back_urls: {
-          success: `${appUrl}${input.successPath}?status=approved`,
-          failure: `${appUrl}${input.failurePath}?status=failed`,
-          pending: `${appUrl}${input.successPath}?status=pending`,
-        },
-        auto_return: "approved",
-        notification_url: `${appUrl}/api/webhooks/mercadopago`,
+  await preApproval.update({
+    id: input.subscriptionId,
+    body: {
+      auto_recurring: {
+        transaction_amount: input.amountCents / 100,
+        currency_id: "ARS",
       },
-    });
+    },
+  });
+}
 
-    if (!result.init_point) {
-      return { ok: false, error: "MercadoPago no devolvió URL de pago." };
-    }
+/**
+ * Cancela una suscripción recurrente. No-op si no hay token o si el id es de
+ * modo manual (transferencia / sin credenciales).
+ */
+export async function cancelMpSubscription(subscriptionId: string): Promise<void> {
+  const token = process.env.MP_ACCESS_TOKEN;
+  if (!token || !isRealMpId(subscriptionId)) return;
 
-    return { ok: true, checkoutUrl: result.init_point, externalRef };
-  } catch (e: unknown) {
-    return { ok: false, error: e instanceof Error ? e.message : "Error de MercadoPago" };
+  const { MercadoPagoConfig, PreApproval } = await import("mercadopago");
+  const client = new MercadoPagoConfig({ accessToken: token });
+  const preApproval = new PreApproval(client);
+
+  await preApproval.update({
+    id: subscriptionId,
+    body: { status: "cancelled" },
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Lectura de recursos (para el webhook)                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface MpSubscription {
+  id: string;
+  status: "authorized" | "paused" | "cancelled" | "pending" | string;
+  externalReference?: string;
+  nextPaymentDate?: string;
+}
+
+export interface MpPayment {
+  id: string;
+  status: "approved" | "rejected" | "pending" | string;
+  subscriptionId?: string;
+  externalReference?: string;
+  amount: number;
+  currency?: string;
+  dateApproved?: string;
+}
+
+/** Trae los datos de una suscripción (preapproval) por su id. */
+export async function fetchMpSubscription(id: string): Promise<MpSubscription> {
+  const token = process.env.MP_ACCESS_TOKEN;
+  if (!token) throw new Error("MP_ACCESS_TOKEN no configurado.");
+
+  const { MercadoPagoConfig, PreApproval } = await import("mercadopago");
+  const client = new MercadoPagoConfig({ accessToken: token });
+  const data = await new PreApproval(client).get({ id });
+
+  return {
+    id: String(data.id ?? id),
+    status: (data.status ?? "pending") as MpSubscription["status"],
+    externalReference: data.external_reference,
+    nextPaymentDate: data.next_payment_date,
+  };
+}
+
+/** Trae los datos de un pago por su id. */
+export async function fetchMpPayment(id: string): Promise<MpPayment> {
+  const token = process.env.MP_ACCESS_TOKEN;
+  if (!token) throw new Error("MP_ACCESS_TOKEN no configurado.");
+
+  const { MercadoPagoConfig, Payment } = await import("mercadopago");
+  const client = new MercadoPagoConfig({ accessToken: token });
+  const data = await new Payment(client).get({ id });
+
+  return {
+    id: String(data.id ?? id),
+    status: data.status ?? "pending",
+    subscriptionId: (data as { preapproval_id?: string }).preapproval_id,
+    externalReference: data.external_reference ?? undefined,
+    amount: data.transaction_amount ?? 0,
+    currency: data.currency_id,
+    dateApproved: data.date_approved ?? undefined,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Verificación de firma del webhook                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Tolerancia de antigüedad del timestamp de la firma (5 minutos). */
+const SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000;
+
+/** Un id "real" de MercadoPago no lleva los prefijos internos de modo manual. */
+function isRealMpId(id: string): boolean {
+  return !/^(manual_|transfer_|mp_)/.test(id);
+}
+
+/**
+ * Verifica la firma HMAC-SHA256 que Mercado Pago incluye en el header
+ * `x-signature` de sus notificaciones, según:
+ * https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
+ *
+ * El manifest se arma como `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
+ * usando `data.id` de los query params de la URL (en minúsculas si viene en
+ * mayúsculas) y `x-request-id` del header. Las partes ausentes se omiten.
+ */
+export function verifyMpSignature(req: Request): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET;
+  if (!secret) {
+    // Sin secret configurado sólo aceptamos en desarrollo local.
+    return process.env.NODE_ENV === "development";
   }
+
+  const xSignature = req.headers.get("x-signature");
+  const xRequestId = req.headers.get("x-request-id");
+  if (!xSignature) return false;
+
+  // El header viene como "ts=<millis>,v1=<hmac-hex>".
+  let ts: string | undefined;
+  let v1: string | undefined;
+  for (const part of xSignature.split(",")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (key === "ts") ts = value;
+    else if (key === "v1") v1 = value;
+  }
+  if (!ts || !v1) return false;
+
+  // `data.id` proviene del query param de la URL de notificación.
+  let dataId: string | null = null;
+  try {
+    const paramsUrl = new URL(req.url).searchParams;
+    dataId = paramsUrl.get("data.id") ?? paramsUrl.get("id");
+  } catch {
+    dataId = null;
+  }
+  if (dataId && /[A-Z]/.test(dataId)) dataId = dataId.toLowerCase();
+
+  // Se omiten las partes ausentes del manifest (no se dejan vacías).
+  let manifest = "";
+  if (dataId) manifest += `id:${dataId};`;
+  if (xRequestId) manifest += `request-id:${xRequestId};`;
+  manifest += `ts:${ts};`;
+
+  const expected = createHmac("sha256", secret).update(manifest).digest("hex");
+
+  // Comparación en tiempo constante para no filtrar información por timing.
+  const expectedBuf = Buffer.from(expected, "hex");
+  const providedBuf = Buffer.from(v1, "hex");
+  if (expectedBuf.length !== providedBuf.length) return false;
+  if (!timingSafeEqual(expectedBuf, providedBuf)) return false;
+
+  // Rechaza notificaciones viejas para mitigar replays. El ts puede venir en
+  // segundos o milisegundos según la integración; normalizamos a milisegundos.
+  let tsMs = Number(ts);
+  if (Number.isFinite(tsMs)) {
+    if (tsMs < 1e12) tsMs *= 1000;
+    if (Math.abs(Date.now() - tsMs) > SIGNATURE_MAX_AGE_MS) return false;
+  }
+
+  return true;
 }

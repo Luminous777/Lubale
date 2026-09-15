@@ -15,11 +15,13 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgAdmin } from "@/lib/authz";
 import {
   createMpSubscription,
-  createMpPreference,
+  cancelMpSubscription,
+  updateMpSubscriptionAmount,
   formatCents,
   quoteFor,
 } from "@/lib/billing";
 import { userHasActiveBusinessMembership } from "@/lib/plan";
+import { MembershipStatus } from "@prisma/client";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -152,29 +154,17 @@ export async function changePlanAction(
     return { ok: true, checkoutUrl: `${successPath}?status=pending&ref=${externalRef}` };
   }
 
-  // ── Particulares con tarjeta → suscripción recurrente MP ──
-  // ── Empresas con tarjeta → pago único Checkout Pro ──
-  let mpResult: { ok: true; checkoutUrl: string; externalRef: string } | { ok: false; error: string };
-
-  if (org.kind === OrganizationKind.personal) {
-    mpResult = await createMpSubscription({
-      orgId: org.id,
-      amountCents: quote.amountCents,
-      cycle: quote.cycle,
-      description: quote.description,
-      payerEmail: session.user.email,
-      successPath,
-    });
-  } else {
-    mpResult = await createMpPreference({
-      orgId: org.id,
-      amountCents: quote.amountCents,
-      description: quote.description,
-      payerEmail: session.user.email,
-      successPath,
-      failurePath: `/dashboard/${orgSlug}/billing`,
-    });
-  }
+  // ── Tarjeta → suscripción recurrente automática de MercadoPago ──
+  // Vale tanto para particulares como para empresas: MP cobra solo cada ciclo
+  // (mensual o anual). La transferencia anual manual se resolvió más arriba.
+  const mpResult = await createMpSubscription({
+    orgId: org.id,
+    amountCents: quote.amountCents,
+    cycle: quote.cycle,
+    description: quote.description,
+    payerEmail: session.user.email,
+    successPath,
+  });
 
   if (!mpResult.ok) return { error: mpResult.error };
 
@@ -222,4 +212,87 @@ export async function changePlanFormAction(
     redirect(res.checkoutUrl);
   }
   redirect(`/dashboard/${orgSlug}/billing`);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Cancelar suscripción                                                      */
+/* -------------------------------------------------------------------------- */
+
+export async function cancelSubscriptionAction({ orgSlug }: { orgSlug: string }): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+  const { org, membership } = await requireOrgAdmin(orgSlug, session.user.id);
+  if (membership.role !== MembershipRole.admin) {
+    throw new Error("Solo el admin puede cancelar el plan.");
+  }
+  if (!org.mpSubscriptionId) throw new Error("No hay suscripción activa.");
+
+  // Cancela en MercadoPago (no-op si es un ref manual / sin token).
+  await cancelMpSubscription(org.mpSubscriptionId);
+
+  // No degradamos el plan acá: sigue vigente hasta fin de período; el webhook
+  // o el vencimiento (effectivePlan) lo bajan a gratis cuando corresponde.
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { billingStatus: BillingStatus.canceled },
+  });
+
+  revalidatePath(`/dashboard/${orgSlug}/billing`);
+  revalidatePath(`/dashboard/${orgSlug}`);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Cambiar asientos (empresa)                                                */
+/* -------------------------------------------------------------------------- */
+
+export async function changeSeatsAction({
+  orgSlug,
+  seats,
+}: {
+  orgSlug: string;
+  seats: number;
+}): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+  const { org, membership } = await requireOrgAdmin(orgSlug, session.user.id);
+  if (membership.role !== MembershipRole.admin) {
+    throw new Error("Solo el admin puede gestionar asientos.");
+  }
+  if (org.plan !== BillingPlan.business) {
+    throw new Error("Los asientos son exclusivos del plan Empresa.");
+  }
+
+  const nextSeats = Number.isFinite(seats) ? Math.max(1, Math.floor(seats)) : 1;
+  if (nextSeats > 200) throw new Error("Para más de 200 asientos, escribinos.");
+
+  const used = await prisma.membership.count({
+    where: { organizationId: org.id, status: { not: MembershipStatus.disabled } },
+  });
+  if (nextSeats < Math.max(1, used)) {
+    throw new Error("No podés bajar de la cantidad de asientos en uso.");
+  }
+
+  // Recalcula el monto del ciclo actual y actualiza la suscripción recurrente.
+  const quote = quoteFor({
+    plan: BillingPlan.business,
+    kind: OrganizationKind.business,
+    seats: nextSeats,
+    cycle: org.billingCycle ?? BillingCycle.monthly,
+    paymentMethod: PaymentMethod.card,
+  });
+
+  if (org.mpSubscriptionId) {
+    await updateMpSubscriptionAmount({
+      subscriptionId: org.mpSubscriptionId,
+      amountCents: quote.amountCents,
+    });
+  }
+
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { seats: nextSeats },
+  });
+
+  revalidatePath(`/dashboard/${orgSlug}/billing`);
+  revalidatePath(`/dashboard/${orgSlug}/team`);
 }

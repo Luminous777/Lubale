@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { startCheckout, cancelSubscription } from './actions';
+import { cancelSubscriptionAction } from '@/server/billing';
 
 const VARIANTS = {
   white: 'bg-white text-navy font-medium',
@@ -11,13 +11,13 @@ const VARIANTS = {
 
 export default function PlanActions({
   orgSlug,
-  plan,
   label,
   variant,
   cancel,
 }: {
   orgSlug: string;
-  plan: string;
+  /** Compat: ya no se usa, el plan se elige en el formulario. */
+  plan?: string;
   label: string;
   variant: keyof typeof VARIANTS;
   cancel?: boolean;
@@ -25,18 +25,26 @@ export default function PlanActions({
   const [confirm, setConfirm] = useState(false);
   const [pending, start] = useTransition();
 
+  // Botones que no cancelan (cambiar plan, activar, actualizar pago) llevan al
+  // formulario unificado de cambio de plan que vive más abajo en la página.
+  if (!cancel) {
+    return (
+      <a
+        href="#cambiar-plan"
+        className={`inline-flex items-center rounded-[11px] px-[18px] py-3 text-[13.5px] ${VARIANTS[variant]}`}
+      >
+        {label}
+      </a>
+    );
+  }
+
   const run = () =>
     start(async () => {
-      if (cancel) {
-        await cancelSubscription({ orgSlug });
-        setConfirm(false);
-        return;
-      }
-      const res = await startCheckout({ orgSlug, targetPlan: plan === 'free' ? 'pro' : plan });
-      if (res.url) window.location.href = res.url;
+      await cancelSubscriptionAction({ orgSlug });
+      setConfirm(false);
     });
 
-  if (cancel && !confirm)
+  if (!confirm)
     return (
       <button
         onClick={() => setConfirm(true)}
@@ -46,26 +54,15 @@ export default function PlanActions({
       </button>
     );
 
-  if (cancel)
-    return (
-      <span className="flex items-center gap-2 text-[12.5px] text-white/70">
-        <span>¿Seguro?</span>
-        <button onClick={run} disabled={pending} className="rounded-lg bg-white px-3 py-2 text-navy">
-          {pending ? '…' : 'Sí, cancelar'}
-        </button>
-        <button onClick={() => setConfirm(false)} className="px-2 py-2">
-          No
-        </button>
-      </span>
-    );
-
   return (
-    <button
-      onClick={run}
-      disabled={pending}
-      className={`rounded-[11px] px-[18px] py-3 text-[13.5px] disabled:opacity-50 ${VARIANTS[variant]}`}
-    >
-      {pending ? 'Redirigiendo…' : label}
-    </button>
+    <span className="flex items-center gap-2 text-[12.5px] text-white/70">
+      <span>¿Seguro?</span>
+      <button onClick={run} disabled={pending} className="rounded-lg bg-white px-3 py-2 text-navy disabled:opacity-50">
+        {pending ? '…' : 'Sí, cancelar'}
+      </button>
+      <button onClick={() => setConfirm(false)} className="px-2 py-2">
+        No
+      </button>
+    </span>
   );
 }

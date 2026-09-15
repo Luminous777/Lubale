@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireMembership } from '@/lib/auth';
 import PlanActions from './PlanActions';
 import SeatManager from './SeatManager';
+import { ChangePlanForm } from './ChangePlanForm';
 
 const PLAN_LABELS: Record<string, { name: string; price: string; unit: string }> = {
   free:     { name: 'Esencial',      price: 'Gratis',   unit: '' },
@@ -176,8 +177,20 @@ export default async function BillingPage({ params }: { params: Promise<{ orgSlu
 
       {/* ── Seat manager (Empresa only) ── */}
       {org.plan === 'business' && (
-        <SeatManager orgSlug={orgSlug} seats={seats} used={seatsUsed} unitPrice={1099} />
+        <SeatManager orgSlug={orgSlug} seats={seats} used={seatsUsed} unitPrice={3999} />
       )}
+
+      {/* ── Cambiar plan (formulario unificado, motor real de MercadoPago) ── */}
+      <div id="cambiar-plan" className="scroll-mt-8">
+        <ChangePlanForm
+          orgId={org.id}
+          orgSlug={orgSlug}
+          plan={org.plan}
+          kind={org.kind}
+          seats={seats}
+          actorEmail=""
+        />
+      </div>
 
       {/* ── Invoice history ── */}
       <section className="overflow-hidden rounded-2xl border border-navy/10">
