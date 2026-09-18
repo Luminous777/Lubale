@@ -17,15 +17,9 @@ const LABEL   = "#8A94A2";
 const HAIRLINE = "rgba(19,38,63,0.08)";
 
 const PLAN_LABELS: Record<string, string> = {
-  gratis:  "Gratis",
-  pro:     "Profesional",
-  empresa: "Empresa",
-};
-
-const PLAN_RENEWS: Record<string, string> = {
-  gratis:  "Sin cargo mensual",
-  pro:     "Suscripción activa",
-  empresa: "Plan corporativo",
+  gratis:  "Plan Gratis",
+  pro:     "Plan Pro",
+  empresa: "Plan Empresarial",
 };
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -123,7 +117,6 @@ export default function AccountScreen() {
           <View style={{ gap: 5 }}>
             <Text style={s.planLabel}>Plan actual</Text>
             <Text style={s.planName}>{PLAN_LABELS[plan] ?? plan}</Text>
-            <Text style={s.planHint}>{PLAN_RENEWS[plan] ?? ""}</Text>
           </View>
           <Text style={s.planChevron}>›</Text>
         </Pressable>

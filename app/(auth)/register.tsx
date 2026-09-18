@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, Pressable,
   StyleSheet, KeyboardAvoidingView, Platform, Alert,
-  ScrollView, ActivityIndicator, Linking, Image, StatusBar,
+  ScrollView, ActivityIndicator, Image, StatusBar,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,7 +13,7 @@ import { Jost_400Regular, Jost_500Medium, Jost_600SemiBold } from "@expo-google-
 import * as AppleAuthentication from "expo-apple-authentication";
 import {
   registerPersonal, registerPro, registerInvite,
-  login, getMyOrgs, updateProfile, generateAiCard, getCheckoutUrl,
+  login, getMyOrgs, updateProfile, generateAiCard,
   type AiCardResult,
 } from "@/lib/api";
 import { setUserPlan } from "@/lib/storage";
@@ -31,10 +31,9 @@ type Plan = "gratis" | "pro" | "empresa";
  * Flujo:
  *  "register"  → datos personales (nombre, email, contraseña)
  *  "plan"      → elegí el tipo de cuenta
- *  "payment"   → confirmación de pago Pro (después de abrir MercadoPago)
  *  "build"     → construí tu tarjeta
  */
-type Step = "register" | "plan" | "payment" | "build";
+type Step = "register" | "plan" | "build";
 
 interface CardData {
   title: string;
@@ -188,7 +187,7 @@ export default function RegisterScreen() {
     }
   }
 
-  // ── Paso 2 → registrar + según plan ───────────────────────────────────────
+  // ── Paso 2 → registrar + según plan ──────────────────────────��────────────
   async function handleSelectPlan(selectedPlan: Plan) {
     setPlan(selectedPlan);
 
@@ -200,18 +199,9 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await doRegister(selectedPlan, "");
-      if (selectedPlan === "pro") {
-        // Abrir checkout de MercadoPago
-        try {
-          const { checkoutUrl } = await getCheckoutUrl();
-          await Linking.openURL(checkoutUrl);
-        } catch {
-          // Si falla el checkout igual continuamos
-        }
-        setStep("payment");
-      } else {
-        setStep("build");
-      }
+      // El pago se gestiona por fuera de la app (web). Acá sólo creamos la
+      // cuenta y seguimos armando la tarjeta.
+      setStep("build");
     } catch (e: unknown) {
       Alert.alert("Error al crear cuenta", e instanceof Error ? e.message : "Intentá de nuevo.");
     } finally {
@@ -336,15 +326,6 @@ export default function RegisterScreen() {
             onSelectPlan={handleSelectPlan}
             onRegisterEmpresa={handleRegisterEmpresa}
             onBack={() => setStep("register")}
-          />
-        )}
-
-        {step === "payment" && (
-          <StepPayment
-            onCheckoutAgain={async () => {
-              try { const { checkoutUrl } = await getCheckoutUrl(); await Linking.openURL(checkoutUrl); } catch {}
-            }}
-            onContinue={() => setStep("build")}
           />
         )}
 
@@ -572,19 +553,7 @@ function StepPlan({
             <Feather name="star" size={20} color={colors.muted} />
           </View>
           <View style={st.planInfo}>
-            <View style={st.planTitleRow}>
-              <Text style={st.planName}>Gratis</Text>
-              <Text style={st.planPrice}>Sin costo</Text>
-            </View>
-            <Text style={st.planSub}>Para empezar</Text>
-            <View style={st.featureList}>
-              {["Foto de perfil", "Nombre y puesto", "1 link de WhatsApp"].map(f => (
-                <View key={f} style={st.featureRow}>
-                  <Feather name="check" size={13} color={colors.success} />
-                  <Text style={st.featureText}>{f}</Text>
-                </View>
-              ))}
-            </View>
+            <Text style={st.planName}>Plan Gratis</Text>
           </View>
           {loading && plan === "gratis"
             ? <ActivityIndicator size="small" color={colors.accent} />
@@ -599,26 +568,11 @@ function StepPlan({
           activeOpacity={0.75}
           disabled={loading}
         >
-          <View style={st.planBadgePro}>
-            <Text style={st.planBadgeText}>✨ Recomendado</Text>
-          </View>
           <View style={[st.planIcon, { backgroundColor: colors.accentSoft }]}>
             <Feather name="zap" size={20} color={colors.accent} />
           </View>
           <View style={st.planInfo}>
-            <View style={st.planTitleRow}>
-              <Text style={[st.planName, { color: colors.accent }]}>Pro</Text>
-              <Text style={[st.planPrice, { color: colors.accent }]}>$1.599/mes</Text>
-            </View>
-            <Text style={st.planSub}>Para profesionales</Text>
-            <View style={st.featureList}>
-              {["Links ilimitados", "Bio y email público", "IA para tu tarjeta", "Analíticas"].map(f => (
-                <View key={f} style={st.featureRow}>
-                  <Feather name="check" size={13} color={colors.success} />
-                  <Text style={st.featureText}>{f}</Text>
-                </View>
-              ))}
-            </View>
+            <Text style={[st.planName, { color: colors.accent }]}>Plan Pro</Text>
           </View>
           {loading && plan === "pro"
             ? <ActivityIndicator size="small" color={colors.accent} />
@@ -637,16 +591,7 @@ function StepPlan({
             <Feather name="briefcase" size={20} color={colors.ink} />
           </View>
           <View style={st.planInfo}>
-            <Text style={st.planName}>Empresa</Text>
-            <Text style={st.planSub}>Con código de invitación</Text>
-            <View style={st.featureList}>
-              {["Todo lo de Pro", "Gestión de equipo", "Branding de empresa"].map(f => (
-                <View key={f} style={st.featureRow}>
-                  <Feather name="check" size={13} color={colors.success} />
-                  <Text style={st.featureText}>{f}</Text>
-                </View>
-              ))}
-            </View>
+            <Text style={st.planName}>Plan Empresarial</Text>
           </View>
           <Feather name={plan === "empresa" ? "chevron-down" : "chevron-right"} size={18} color={colors.faint} />
         </TouchableOpacity>
@@ -676,47 +621,6 @@ function StepPlan({
             </Pressable>
           </View>
         )}
-      </View>
-    </SafeAreaView>
-  );
-}
-
-// ─── Step 3b: Confirmación de pago Pro ────────────────────────────────────────
-
-function StepPayment({
-  onCheckoutAgain, onContinue,
-}: {
-  onCheckoutAgain: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <SafeAreaView style={st.safeStep} edges={["top"]}>
-      <View style={st.paymentCenter}>
-        <View style={st.paymentIcon}>
-          <Feather name="zap" size={32} color={colors.onAccent} />
-        </View>
-        <Text style={[st.stepTitle, { textAlign: "center", marginTop: spacing.xl }]}>
-          Activá tu plan Pro
-        </Text>
-        <Text style={[st.stepSub, { textAlign: "center" }]}>
-          Completá el pago en MercadoPago para desbloquear todas las funciones
-        </Text>
-
-        <Pressable
-          style={({ pressed }) => [st.primaryBtn, { marginTop: spacing["2xl"] }, pressed && st.pressed]}
-          onPress={onCheckoutAgain}
-        >
-          <Feather name="external-link" size={16} color="#fff" style={{ marginRight: 6 }} />
-          <Text style={st.primaryBtnText}>Ir a MercadoPago</Text>
-        </Pressable>
-
-        <TouchableOpacity style={st.skipBtn} onPress={onContinue}>
-          <Text style={st.skipText}>Ya pagué — continuar →</Text>
-        </TouchableOpacity>
-
-        <Text style={st.paymentNote}>
-          Si ya completaste el pago, tocá "Continuar". Tu cuenta puede tardar unos segundos en activarse.
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -1139,22 +1043,9 @@ const st = StyleSheet.create({
     paddingTop: spacing["2xl"] + 4,
     position: "relative",
   },
-  planBadgePro: {
-    position: "absolute", top: 0, right: spacing.lg,
-    backgroundColor: colors.accent,
-    borderBottomLeftRadius: radius.sm, borderBottomRightRadius: radius.sm,
-    paddingHorizontal: spacing.md, paddingVertical: 4,
-  },
-  planBadgeText: { fontSize: font.xs, fontFamily: "Jost_600SemiBold", color: "#FFFFFF" },
   planIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   planInfo: { flex: 1 },
-  planTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
   planName: { fontSize: font.md, fontFamily: "Jost_600SemiBold", color: colors.ink },
-  planPrice: { fontSize: font.xs, fontFamily: "Jost_400Regular", color: colors.muted },
-  planSub: { fontSize: font.xs, fontFamily: "Jost_400Regular", color: colors.muted, marginBottom: spacing.sm },
-  featureList: { gap: 4 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  featureText: { fontSize: font.sm, fontFamily: "Jost_400Regular", color: colors.ink },
 
   // Empresa invite box
   inviteBox: {
@@ -1171,27 +1062,6 @@ const st = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
     fontSize: font.base, color: colors.ink, fontFamily: "Jost_400Regular",
-  },
-
-  // Payment screen
-  paymentCenter: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.md },
-  paymentIcon: {
-    width: 80, height: 80, borderRadius: 20,
-    backgroundColor: NAVY,
-    alignItems: "center", justifyContent: "center",
-    marginBottom: spacing.lg,
-    shadowColor: NAVY,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
-  },
-  skipBtn: { marginTop: spacing.xl, paddingVertical: spacing.md },
-  skipText: { fontFamily: "Jost_500Medium", fontSize: font.sm, color: colors.accent },
-  paymentNote: {
-    fontFamily: "Jost_400Regular",
-    fontSize: font.xs, color: colors.muted,
-    textAlign: "center", lineHeight: 18,
-    marginTop: spacing.xl,
-    paddingHorizontal: spacing.md,
   },
 
   // AI section

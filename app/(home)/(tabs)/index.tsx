@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
-  StatusBar, ActivityIndicator, Alert, Share, Platform, Linking,
+  StatusBar, ActivityIndicator, Alert, Share, Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect, Stack } from "expo-router";
@@ -9,7 +9,7 @@ import { useFonts, CormorantGaramond_400Regular } from "@expo-google-fonts/cormo
 import { Jost_400Regular, Jost_500Medium } from "@expo-google-fonts/jost";
 import * as Clipboard from "expo-clipboard";
 import {
-  getMyOrgs, getCheckoutUrl, getProfile, getProfileStats, API_BASE,
+  getMyOrgs, getProfile, getProfileStats, API_BASE,
   type MyOrg, type ProfileStats,
 } from "@/lib/api";
 import { getActiveProfileId, setActiveProfileId, getUserPlan } from "@/lib/storage";
@@ -182,13 +182,6 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Banner pago pendiente Pro */}
-      {localPlan === "pro" && activeOrg?.plan === "gratis" && (
-        <View style={{ paddingHorizontal: 24, paddingBottom: 10 }}>
-          <ProPaymentBanner />
-        </View>
-      )}
-
       {/* Tabs (Personales / Equipo) */}
       <View style={s.tabs}>
         {(["mine", "team"] as const).map(key => {
@@ -307,41 +300,6 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-// ─── Pro Payment Banner ───────────────────────────────────────────────────────
-
-function ProPaymentBanner() {
-  const [loading, setLoading] = useState(false);
-
-  async function handlePay() {
-    setLoading(true);
-    try {
-      const { checkoutUrl } = await getCheckoutUrl();
-      await Linking.openURL(checkoutUrl);
-    } catch {
-      Alert.alert("Error", "No se pudo iniciar el pago. Intentá de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Pressable
-      onPress={handlePay}
-      style={({ pressed }) => [s.payBanner, pressed && { opacity: 0.9 }]}
-    >
-      <View style={s.payDot} />
-      <View style={{ flex: 1 }}>
-        <Text style={s.payTitle}>Pago pendiente · Pro</Text>
-        <Text style={s.paySub}>Completá el pago para activar todas las funciones</Text>
-      </View>
-      {loading
-        ? <ActivityIndicator size="small" color={NAVY} />
-        : <Text style={s.payArrow}>→</Text>
-      }
-    </Pressable>
   );
 }
 
@@ -513,23 +471,6 @@ const s = StyleSheet.create({
     fontFamily: "Jost_500Medium",
     fontSize: 14, color: "#FFFFFF",
   },
-
-  // Pro payment banner
-  payBanner: {
-    flexDirection: "row", alignItems: "center",
-    gap: 12,
-    backgroundColor: "rgba(19,38,63,0.04)",
-    borderWidth: 1, borderColor: "rgba(19,38,63,0.12)",
-    borderRadius: 14, padding: 14,
-  },
-  payDot: {
-    width: 8, height: 8,
-    borderRadius: 4, backgroundColor: GOLD,
-    flexShrink: 0,
-  },
-  payTitle: { fontFamily: "Jost_500Medium", fontSize: 13, color: NAVY },
-  paySub:   { fontFamily: "Jost_400Regular", fontSize: 12, color: MUTED },
-  payArrow: { fontFamily: "Jost_400Regular", fontSize: 18, color: NAVY },
 
   pressed: { opacity: 0.8 },
 });

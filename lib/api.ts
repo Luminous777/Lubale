@@ -85,16 +85,6 @@ export async function registerInvite(payload: {
   return data as { ok: boolean; orgSlug: string; orgName: string };
 }
 
-export async function getCheckoutUrl(): Promise<{ checkoutUrl: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/billing/checkout`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Error al iniciar el pago");
-  return data as { checkoutUrl: string };
-}
-
 export async function logout() {
   await SecureStore.deleteItemAsync("access_token");
   await SecureStore.deleteItemAsync("active_profile");
