@@ -290,7 +290,6 @@ export default function PublicCardScreen() {
           {/* Footer */}
           <View style={s.footer}>
             <Text style={s.wordmark}>LUBELA</Text>
-            <Text style={s.footerHint}>Creá la tuya en lubela.app</Text>
           </View>
         </View>
       </ScrollView>
@@ -428,7 +427,6 @@ const s = StyleSheet.create({
     fontSize: 15, letterSpacing: 4.5,
     color: LABEL, paddingLeft: 4.5,
   },
-  footerHint: { fontFamily: "Jost_400Regular", fontSize: 11, color: "#A6AEB9" },
 
   // CTA dejar datos
   leadCta: {

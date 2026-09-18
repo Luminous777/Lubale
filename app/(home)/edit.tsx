@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, Image, Linking,
+  ScrollView, ActivityIndicator, Alert, Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -98,7 +98,7 @@ function LockedField({ label }: { label: string }) {
   function onPress() {
     Alert.alert(
       "Función exclusiva Pro",
-      "Esta opción está disponible en el Plan Pro. Mejorá tu plan desde tarjeta.app",
+      "Esta opción está disponible en el Plan Pro.",
       [{ text: "Entendido" }],
     );
   }
@@ -469,23 +469,15 @@ export default function EditScreen() {
       {isPro && (
         <>
           <SectionLabel>Marca personal</SectionLabel>
-          <TouchableOpacity
-            style={st.brandingRow}
-            activeOpacity={0.8}
-            onPress={() => {
-              const orgSlug = profile?.organization.slug ?? "";
-              Linking.openURL(`${API_BASE}/dashboard/${orgSlug}/settings`);
-            }}
-          >
+          <View style={st.brandingRow}>
             <View style={st.brandingIcon}>
               <Feather name="sliders" size={18} color={colors.accent} />
             </View>
             <View style={st.brandingInfo}>
               <Text style={st.brandingTitle}>Personalizar logo y colores</Text>
-              <Text style={st.brandingHint}>Gestionar desde lubale.app →</Text>
+              <Text style={st.brandingHint}>Incluido en tu Plan Pro</Text>
             </View>
-            <Feather name="external-link" size={16} color={colors.faint} />
-          </TouchableOpacity>
+          </View>
         </>
       )}
 
